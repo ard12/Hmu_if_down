@@ -1,0 +1,26 @@
+# Plan 2: ESP32 + 60GHz mmWave Radar Fall Detection Configuration
+
+serial:
+  # Port on ESP32 or PC for radar UART communication
+  port: "COM3"
+  baudrate: 115200
+  timeout: 1.0
+
+radar_protocol:
+  # Protocol type: seeed_mr60fda1 or hlk_ld2450
+  model: "seeed_mr60fda1"
+  # Standard packet header bytes
+  header_bytes: [0x53, 0x59]
+
+thresholds:
+  # Height threshold for floor-level lying down (meters)
+  floor_height_threshold_m: 0.35
+  # Height for standing posture (meters)
+  standing_height_threshold_m: 1.2
+  # Confirmation window of continuous floor state (seconds)
+  fall_dwell_time_sec: 3.5
+
+alert:
+  enable_sound: true
+  cooldown_sec: 5.0
+  log_dir: "incidents"

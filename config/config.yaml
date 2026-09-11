@@ -1,0 +1,46 @@
+# Fall Detection Configuration
+
+detector:
+  # Minimum confidence threshold for pose detection landmarks
+  min_detection_confidence: 0.5
+  min_tracking_confidence: 0.5
+  model_complexity: 1 # 0=Lite, 1=Full, 2=Heavy
+
+fall_heuristics:
+  # Torso inclination angle threshold (degrees from vertical)
+  # When the person tilts beyond this angle (e.g. 55-60 deg), fall posture is suspected
+  torso_angle_threshold: 55.0
+
+  # Bounding box aspect ratio (height / width)
+  # When standing, H/W is usually > 1.2. When lying down, H/W drops below 0.85
+  aspect_ratio_threshold: 0.85
+
+  # Vertical descent velocity of torso centroid (normalized coordinate displacement per frame)
+  # Rapid drop indicates an abrupt fall rather than slow sitting
+  fall_velocity_threshold: 0.04
+
+  # Number of consecutive frames the person must maintain fall posture before confirmed
+  # Prevents false alarms from sudden gestures, quick dips, or brief bowing
+  confirmation_frames: 10
+
+  # Number of consecutive upright frames to clear a fall and transition back to normal
+  recovery_frames: 15
+
+alert:
+  # Enable sound alert (Windows beep / cross-platform tone)
+  enable_sound: true
+  beep_frequency: 1000 # Hz
+  beep_duration_ms: 500 # ms
+  
+  # Minimum cooldown seconds between audible alerts
+  cooldown_seconds: 5.0
+  
+  # Log fall events to incidents/incidents.csv
+  enable_logging: true
+  log_dir: "incidents"
+
+video:
+  # Frame dimensions for processing and display (width, height)
+  frame_width: 960
+  frame_height: 540
+  fps: 30

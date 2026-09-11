@@ -1,0 +1,43 @@
+# Plan 1: 4-Node Wi-Fi CSI Fall Detection Configuration
+
+network:
+  # Wi-Fi Channel for ESP-NOW (1, 6, or 11 recommended for 2.4 GHz)
+  wifi_channel: 6
+  # Packet transmission rate from Transmitter AP (Hz)
+  injection_rate_hz: 100
+  # UDP port where tracker nodes send CSI frames
+  udp_port: 5555
+  # Expected tracker nodes
+  expected_nodes: [1, 2, 3]
+
+signal_processing:
+  # Sampling rate matching injection rate
+  sampling_rate_hz: 100
+  # Bandpass filter cutoff frequencies (Hz) to capture human fall kinetics
+  bandpass_low_hz: 0.5
+  bandpass_high_hz: 35.0
+  filter_order: 4
+  # Number of principal components to retain from subcarrier matrix
+  pca_components: 2
+  # Sliding window size for STFT (samples)
+  stft_window_size: 64
+  stft_hop_size: 16
+
+fall_kinetics:
+  # Velocity threshold in m/s (human free fall v > 1.8 m/s)
+  fall_velocity_threshold_mps: 1.8
+  # Energy burst ratio compared to pre-fall moving baseline
+  energy_surge_ratio: 3.2
+  # Maximum coincidence time window between any 2 links to register a fall (seconds)
+  coincidence_window_sec: 0.4
+  # Minimum links that must simultaneously observe the fall burst (out of 3)
+  min_coincident_links: 2
+  # Inactivity duration on floor post-fall to confirm event (seconds)
+  post_fall_quiescence_sec: 4.0
+  # Variance threshold below which target is considered motionless
+  motionless_variance_threshold: 0.08
+
+alert:
+  enable_sound: true
+  cooldown_sec: 5.0
+  log_dir: "incidents"
