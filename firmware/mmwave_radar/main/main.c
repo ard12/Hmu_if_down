@@ -68,6 +68,37 @@ static void init_uart(void) {
     ESP_LOGI(TAG, "UART initialized on TX:%d, RX:%d at 115200 baud", TXD_PIN, RXD_PIN);
 }
 
+static void init_udp_socket(void) {
+    s_udp_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+    if (s_udp_sock < 0) {
+        ESP_LOGE(TAG, "Unable to create UDP socket: errno %d", errno);
+        return;
+    }
+
+    int broadcast_enable = 1;
+    setsockopt(s_udp_sock, SOL_SOCKET, SO_BROADCAST, &broadcast_enable, sizeof(broadcast_enable));
+
+    memset(&s_dest_addr, 0, sizeof(s_dest_addr));
+    s_dest_addr.sin_family = AF_INET;
+    s_dest_addr.sin_port = htons(DEST_PORT);
+    s_dest_addr.sin_addr.s_addr = inet_addr(DEST_IP);
+
+    ESP_LOGI(TAG, "UDP socket ready, streaming radar events to %s:%d", DEST_IP, DEST_PORT);
+}
+
+static void init_wifi(void) {
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_start());
+
+    ESP_LOGI(TAG, "Wi-Fi initialized in STA mode for mmWave Gateway");
+}
+
 void app_main(void) {
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -76,6 +107,8 @@ void app_main(void) {
     }
     ESP_ERROR_CHECK(ret);
 
+    init_wifi();
+    init_udp_socket();
     mmwave_parser_init(on_radar_event);
     init_uart();
 

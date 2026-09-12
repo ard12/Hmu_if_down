@@ -224,6 +224,33 @@ def test_node_buffer_sequence_gap_interpolation():
     np.testing.assert_allclose(buffer.amplitudes[5], np.array([40.0, 50.0]))
 
 
+def test_node_buffer_out_of_order_and_reboot():
+    """NodeBuffer correctly drops late out-of-order packets and resets on tracker reboot."""
+    buffer = NodeBuffer(window_size=100)
+    phases = np.zeros(2)
+
+    # Receive packets 10, 11, 12
+    for s in [10, 11, 12]:
+        p = CSIPacket(node_id=1, rssi=-50, subcarrier_count=2, timestamp_ms=100 + s * 10, seq_num=s, amplitudes=np.array([float(s), float(s)]), phases=phases)
+        assert buffer.push(p) == 0
+
+    assert buffer.last_seq == 12
+    assert len(buffer.amplitudes) == 3
+
+    # Late out-of-order packet with seq_num=11 arrives late
+    p_late = CSIPacket(node_id=1, rssi=-50, subcarrier_count=2, timestamp_ms=125, seq_num=11, amplitudes=np.array([11.0, 11.0]), phases=phases)
+    assert buffer.push(p_late) == 0
+    # Should not corrupt last_seq or append duplicates
+    assert buffer.last_seq == 12
+    assert len(buffer.amplitudes) == 3
+
+    # Now simulate node reboot: seq_num drops from 12 to 0 (after having run a long time, e.g. seq=1500)
+    buffer.last_seq = 1500
+    p_reboot = CSIPacket(node_id=1, rssi=-50, subcarrier_count=2, timestamp_ms=10, seq_num=0, amplitudes=np.array([0.0, 0.0]), phases=phases)
+    buffer.push(p_reboot)
+    assert buffer.last_seq == 0
+
+
 def test_node_buffer_is_alive(monkeypatch):
     """NodeBuffer tracks liveness based on timeout threshold from last received packet."""
     buffer = NodeBuffer()

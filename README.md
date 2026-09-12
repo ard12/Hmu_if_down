@@ -114,7 +114,7 @@ idf.py -p COM_PORT flash monitor
 ```
 
 ### 2. Flash Tracker Nodes (Nodes 1, 2, 3)
-For each tracker, edit `CONFIG_TRACKER_NODE_ID` in [`firmware/wifi_csi/tracker_node/main.c`](firmware/wifi_csi/tracker_node/main.c) to `1`, `2`, or `3`, then flash:
+For each tracker, edit `CONFIG_TRACKER_NODE_ID` in [`firmware/wifi_csi/tracker_node/main/main.c`](firmware/wifi_csi/tracker_node/main/main.c) to `1`, `2`, or `3`, then flash:
 ```powershell
 cd firmware/wifi_csi/tracker_node
 idf.py set-target esp32c6
@@ -191,25 +191,44 @@ Test coverage includes:
 Fall_Detection/
 ├── config/
 │   ├── csi_config.yaml           # Wi-Fi CSI thresholds & network settings
-│   └── radar_config.yaml         # mmWave radar parameters & height thresholds
+│   ├── radar_config.yaml         # mmWave radar parameters & height thresholds
+│   └── calibration.yaml          # Auto-generated room noise profile & thresholds
 ├── firmware/
 │   ├── wifi_csi/
 │   │   ├── transmitter_ap/       # Node 0 (AP): 100 Hz ESP-NOW active injector
+│   │   │   ├── CMakeLists.txt
+│   │   │   └── main/             # Standard ESP-IDF component directory
+│   │   │       ├── CMakeLists.txt
+│   │   │       └── main.c
 │   │   └── tracker_node/         # Nodes 1, 2, 3: CSI receiver & UDP streamer
+│   │       ├── CMakeLists.txt
+│   │       └── main/
+│   │           ├── CMakeLists.txt
+│   │           └── main.c
 │   └── mmwave_radar/             # Plan 2: ESP32 + 60GHz mmWave radar gateway
+│       ├── CMakeLists.txt
+│       └── main/
+│           ├── CMakeLists.txt
+│           ├── main.c
+│           ├── mmwave_parser.c
+│           └── mmwave_parser.h
 ├── hub/
 │   ├── csi_pipeline/
-│   │   ├── preprocessor.py       # Denoising & Butterworth bandpass filter
+│   │   ├── preprocessor.py       # Denoising, phase unwrapping & Butterworth filter
 │   │   ├── pca_features.py       # PCA dimensionality & Doppler velocity STFT
 │   │   └── multi_link_fusion.py  # 3-Link coincidence voting & stillness state machine
 │   ├── mmwave_pipeline/
-│   │   └── radar_receiver.py     # Binary protocol decoder & height tracker
-│   ├── alert_dispatcher.py       # Audio siren, cooldowns, and CSV logger
+│   │   └── radar_receiver.py     # Binary & JSON protocol decoder & height tracker
+│   ├── alert_dispatcher.py       # Sirens, CSV logger, MQTT & HTTP Webhooks
+│   ├── calibrate.py              # Room noise floor calibration & threshold generator
 │   ├── fusion_engine.py          # Dual-modality consensus engine
-│   └── server.py                 # Unified CLI hub and live demo simulator
+│   └── server.py                 # Multi-threaded hub server & live demo simulator
 ├── tests/
 │   ├── test_csi_pipeline.py      # Wi-Fi CSI signal tests
-│   └── test_mmwave_parser.py     # Radar frame decoding tests
+│   ├── test_mmwave_parser.py     # Radar frame decoding tests
+│   ├── test_integration.py       # Full pipeline integration tests
+│   ├── test_alert_dispatcher.py  # MQTT, Webhook & Siren tests
+│   └── test_calibrate.py         # Room calibration tests
 ├── .gitignore
 ├── LICENSE                       # MIT License
 ├── README.md                     # Documentation

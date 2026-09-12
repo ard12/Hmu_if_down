@@ -87,19 +87,31 @@ class NodeBuffer:
         interpolated = 0
 
         # Sequence gap detection and interpolation
-        if self.last_seq >= 0 and packet.seq_num > self.last_seq + 1:
-            gap = min(packet.seq_num - self.last_seq - 1, 5)  # Cap interpolation at 5 frames
-            self.total_gaps += gap
-            if len(self.amplitudes) > 0:
-                last_amp = self.amplitudes[-1]
-                for i in range(1, gap + 1):
-                    # Linear interpolation between last known and current
-                    alpha = i / (gap + 1)
-                    interp = last_amp * (1 - alpha) + packet.amplitudes * alpha
-                    self.amplitudes.append(interp)
-                    interpolated += 1
+        if self.last_seq >= 0:
+            if packet.seq_num > self.last_seq + 1:
+                gap = min(packet.seq_num - self.last_seq - 1, 5)  # Cap interpolation at 5 frames
+                self.total_gaps += gap
+                if len(self.amplitudes) > 0:
+                    last_amp = self.amplitudes[-1]
+                    for i in range(1, gap + 1):
+                        # Linear interpolation between last known and current
+                        alpha = i / (gap + 1)
+                        interp = last_amp * (1 - alpha) + packet.amplitudes * alpha
+                        self.amplitudes.append(interp)
+                        interpolated += 1
+                self.last_seq = packet.seq_num
+            elif packet.seq_num == self.last_seq + 1:
+                self.last_seq = packet.seq_num
+            else:  # packet.seq_num <= self.last_seq
+                if self.last_seq - packet.seq_num > 1000:
+                    # Tracker node rebooted: reset sequence baseline
+                    self.last_seq = packet.seq_num
+                else:
+                    # Late out-of-order or duplicate packet: drop to preserve chronological order
+                    return 0
+        else:
+            self.last_seq = packet.seq_num
 
-        self.last_seq = packet.seq_num
         self.amplitudes.append(packet.amplitudes)
         return interpolated
 

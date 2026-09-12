@@ -56,7 +56,7 @@ class CSIPreprocessor:
             return None
 
         expected_payload_len = subcarrier_count * 2
-        if len(data) < self.HEADER_SIZE + expected_payload_len:
+        if subcarrier_count == 0 or len(data) < self.HEADER_SIZE + expected_payload_len:
             return None
 
         # Unpack raw I/Q signed 8-bit bytes

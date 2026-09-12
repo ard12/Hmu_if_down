@@ -65,10 +65,26 @@ static QueueHandle_t s_csi_queue = NULL;
 static volatile uint32_t s_queue_drops = 0;
 static volatile uint32_t s_packets_sent = 0;
 
+// Optional AP MAC filtering: set to 1 and define target MAC to reject crosstalk/ambient Wi-Fi
+#ifndef CONFIG_FILTER_AP_MAC
+#define CONFIG_FILTER_AP_MAC 0
+#endif
+
+#if CONFIG_FILTER_AP_MAC
+// Replace with Transmitter AP MAC printed on Node 0 startup log
+static const uint8_t s_target_ap_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+#endif
+
 static void wifi_csi_rx_callback(void *ctx, wifi_csi_info_t *info) {
     if (!info || !info->buf || info->len == 0 || s_csi_queue == NULL) {
         return;
     }
+
+#if CONFIG_FILTER_AP_MAC
+    if (memcmp(info->mac, s_target_ap_mac, 6) != 0) {
+        return; // Discard packets from non-AP sources
+    }
+#endif
 
     uint16_t subcarrier_count = info->len / 2;
     if (subcarrier_count > MAX_SUBCARRIERS) {
