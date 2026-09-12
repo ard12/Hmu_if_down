@@ -43,6 +43,10 @@ class CSIPCAExtractor:
         if data.shape[0] < 2:
             return np.zeros((data.shape[0], n_components))
 
+        # Sanitize NaN/Inf values from corrupt packets before SVD
+        if np.any(~np.isfinite(data)):
+            data = np.nan_to_num(data, nan=0.0, posinf=0.0, neginf=0.0)
+
         # Mean-center each subcarrier
         centered = data - np.mean(data, axis=0, keepdims=True)
 

@@ -98,8 +98,12 @@ class CSIPreprocessor:
         Returns:
             Filtered matrix of shape (T, num_subcarriers)
         """
-        if amplitude_window.shape[0] <= 18:
-            return amplitude_window  # Window too short for filter padlen
+        # A 4th-order bandpass produces 4 SOS sections; sosfiltfilt default
+        # padlen = 3 * max_section_order ≈ 27.  Guard against short windows.
+        min_samples = 3 * (2 * self.order) + 1  # = 25 for order=4, add margin
+        if amplitude_window.shape[0] <= max(min_samples, 30):
+            return amplitude_window
 
-        filtered = signal.sosfiltfilt(self.sos, amplitude_window, axis=0)
+        filtered = signal.sosfiltfilt(self.sos, amplitude_window, axis=0,
+                                      padlen=min(amplitude_window.shape[0] - 1, 3 * (2 * self.order)))
         return filtered

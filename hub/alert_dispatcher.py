@@ -33,6 +33,7 @@ class AlertDispatcher:
 
         self.last_alert_time: float = 0.0
         self._beeping = False
+        self._lock = threading.Lock()
 
         # Set up CSV incident logger
         self.log_dir = Path(__file__).resolve().parent.parent / log_dir
@@ -64,22 +65,23 @@ class AlertDispatcher:
 
     def trigger_alarm(self, modality: str, event_name: str, details: str = ""):
         """Trigger siren and record incident if outside cooldown window."""
-        now = time.time()
-        if now - self.last_alert_time < self.cooldown_sec:
-            return
+        with self._lock:
+            now = time.time()
+            if now - self.last_alert_time < self.cooldown_sec:
+                return
 
-        self.last_alert_time = now
+            self.last_alert_time = now
 
-        # Play sound in background thread
-        if self.enable_sound and not self._beeping:
-            threading.Thread(target=self._beep_worker, daemon=True).start()
+            # Play sound in background thread
+            if self.enable_sound and not self._beeping:
+                threading.Thread(target=self._beep_worker, daemon=True).start()
 
-        # Log incident to disk
-        try:
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            with open(self.csv_path, "a", newline="", encoding="utf-8") as f:
-                writer = csv.writer(f)
-                writer.writerow([timestamp, modality, event_name, details])
-            print(f"\n[ALERT] [{timestamp}] {modality.upper()} -> {event_name}: {details}")
-        except Exception as e:
-            print(f"[AlertDispatcher] Logging error: {e}", file=sys.stderr)
+            # Log incident to disk
+            try:
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                with open(self.csv_path, "a", newline="", encoding="utf-8") as f:
+                    writer = csv.writer(f)
+                    writer.writerow([timestamp, modality, event_name, details])
+                print(f"\n[ALERT] [{timestamp}] {modality.upper()} -> {event_name}: {details}")
+            except Exception as e:
+                print(f"[AlertDispatcher] Logging error: {e}", file=sys.stderr)

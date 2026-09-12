@@ -5,15 +5,20 @@
  * Configures CSI collection callback on ESP32/ESP32-C6, extracts raw
  * subcarrier I/Q information, packages with Node ID, and streams via UDP
  * to the central Fall Detection processing hub.
+ *
+ * IMPORTANT: The CSI callback runs in the Wi-Fi driver's high-priority task.
+ * All network I/O is decoupled via a FreeRTOS Queue to prevent WDT resets.
  */
 
 #include <stdio.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 #include "esp_system.h"
 #include "esp_log.h"
 #include "esp_wifi.h"
+#include "esp_timer.h"
 #include "nvs_flash.h"
 #include "lwip/sockets.h"
 
@@ -28,6 +33,10 @@ static const char *TAG = "CSI_TRACKER";
 #define DEST_PORT 5555
 #define DEST_IP "192.168.4.2" // Central Hub IP or broadcast "255.255.255.255"
 
+#define CSI_QUEUE_DEPTH 16
+#define MAX_SUBCARRIERS 128
+#define HEARTBEAT_INTERVAL_MS 5000
+
 // Header for UDP CSI Stream Packet
 typedef struct __attribute__((packed)) {
     uint8_t magic[4];          // "CSIF"
@@ -38,23 +47,34 @@ typedef struct __attribute__((packed)) {
     uint32_t seq_num;
 } csi_udp_header_t;
 
+// Queue item: pre-built UDP packet ready to send
+typedef struct {
+    uint16_t total_len;
+    uint8_t buffer[sizeof(csi_udp_header_t) + MAX_SUBCARRIERS * 2];
+} csi_queue_item_t;
+
 static int s_udp_sock = -1;
 static struct sockaddr_in s_dest_addr;
 static uint32_t s_packet_counter = 0;
+static QueueHandle_t s_csi_queue = NULL;
+
+// Counters for diagnostics
+static volatile uint32_t s_queue_drops = 0;
+static volatile uint32_t s_packets_sent = 0;
 
 static void wifi_csi_rx_callback(void *ctx, wifi_csi_info_t *info) {
-    if (!info || !info->buf || info->len == 0 || s_udp_sock < 0) {
+    if (!info || !info->buf || info->len == 0 || s_csi_queue == NULL) {
         return;
     }
 
     uint16_t subcarrier_count = info->len / 2;
-    if (subcarrier_count > 128) {
-        subcarrier_count = 128; // Cap for compact UDP frame
+    if (subcarrier_count > MAX_SUBCARRIERS) {
+        subcarrier_count = MAX_SUBCARRIERS;
     }
 
-    // Prepare packet buffer: Header + I/Q bytes
-    uint8_t buffer[sizeof(csi_udp_header_t) + 256];
-    csi_udp_header_t *hdr = (csi_udp_header_t *)buffer;
+    // Build packet in a stack-local queue item (fast, no heap alloc)
+    csi_queue_item_t item;
+    csi_udp_header_t *hdr = (csi_udp_header_t *)item.buffer;
 
     memcpy(hdr->magic, "CSIF", 4);
     hdr->node_id = (uint8_t)CONFIG_TRACKER_NODE_ID;
@@ -64,10 +84,60 @@ static void wifi_csi_rx_callback(void *ctx, wifi_csi_info_t *info) {
     hdr->seq_num = s_packet_counter++;
 
     // Copy raw I/Q subcarrier bytes
-    memcpy(buffer + sizeof(csi_udp_header_t), info->buf, subcarrier_count * 2);
+    memcpy(item.buffer + sizeof(csi_udp_header_t), info->buf, subcarrier_count * 2);
+    item.total_len = sizeof(csi_udp_header_t) + (subcarrier_count * 2);
 
-    int total_len = sizeof(csi_udp_header_t) + (subcarrier_count * 2);
-    sendto(s_udp_sock, buffer, total_len, 0, (struct sockaddr *)&s_dest_addr, sizeof(s_dest_addr));
+    // Non-blocking enqueue — drop packet if queue is full rather than blocking
+    if (xQueueSendFromISR(s_csi_queue, &item, NULL) != pdTRUE) {
+        s_queue_drops++;
+    }
+}
+
+/**
+ * @brief Dedicated UDP transmission task.
+ * Reads pre-built packets from the queue and sends them over the network.
+ * This runs in its own FreeRTOS task context where blocking I/O is safe.
+ */
+static void udp_tx_task(void *arg) {
+    csi_queue_item_t item;
+    while (1) {
+        if (xQueueReceive(s_csi_queue, &item, portMAX_DELAY) == pdTRUE) {
+            if (s_udp_sock >= 0) {
+                sendto(s_udp_sock, item.buffer, item.total_len, 0,
+                       (struct sockaddr *)&s_dest_addr, sizeof(s_dest_addr));
+                s_packets_sent++;
+            }
+        }
+    }
+}
+
+/**
+ * @brief Periodic heartbeat task for diagnostics and graceful degradation.
+ * Logs queue health and sends a heartbeat beacon to the hub.
+ */
+static void heartbeat_task(void *arg) {
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(HEARTBEAT_INTERVAL_MS));
+
+        ESP_LOGI(TAG, "[Node %d] Sent: %lu | QueueDrops: %lu | QueueFree: %d/%d",
+                 CONFIG_TRACKER_NODE_ID,
+                 (unsigned long)s_packets_sent,
+                 (unsigned long)s_queue_drops,
+                 (int)uxQueueSpacesAvailable(s_csi_queue),
+                 CSI_QUEUE_DEPTH);
+
+        // Send heartbeat JSON to hub so it knows this node is alive
+        if (s_udp_sock >= 0) {
+            char hb[96];
+            int len = snprintf(hb, sizeof(hb),
+                               "{\"heartbeat\":%d,\"sent\":%lu,\"drops\":%lu}\n",
+                               CONFIG_TRACKER_NODE_ID,
+                               (unsigned long)s_packets_sent,
+                               (unsigned long)s_queue_drops);
+            sendto(s_udp_sock, hb, len, 0,
+                   (struct sockaddr *)&s_dest_addr, sizeof(s_dest_addr));
+        }
+    }
 }
 
 static void init_udp_socket(void) {
@@ -126,8 +196,22 @@ void app_main(void) {
     }
     ESP_ERROR_CHECK(ret);
 
+    // Create the CSI packet queue BEFORE enabling CSI
+    s_csi_queue = xQueueCreate(CSI_QUEUE_DEPTH, sizeof(csi_queue_item_t));
+    if (s_csi_queue == NULL) {
+        ESP_LOGE(TAG, "Failed to create CSI queue!");
+        return;
+    }
+
     init_udp_socket();
     init_wifi_csi();
 
+    // Launch the dedicated UDP transmission task (safe context for sendto)
+    xTaskCreate(udp_tx_task, "udp_tx_task", 4096, NULL, 5, NULL);
+
+    // Launch heartbeat/diagnostics task
+    xTaskCreate(heartbeat_task, "heartbeat_task", 2048, NULL, 3, NULL);
+
     ESP_LOGI(TAG, "Tracker Node %d is actively running and streaming CSI.", CONFIG_TRACKER_NODE_ID);
 }
+
