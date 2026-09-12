@@ -31,7 +31,10 @@ static const char *TAG = "CSI_TRACKER";
 
 #define WIFI_CHANNEL 6
 #define DEST_PORT 5555
-#define DEST_IP "192.168.4.2" // Central Hub IP or broadcast "255.255.255.255"
+// Use broadcast so trackers don't need to know the hub's IP.
+// The hub binds on 0.0.0.0:5555 and receives broadcast packets.
+// For production, replace with mDNS resolution (esp_mdns component).
+#define DEST_IP "255.255.255.255"
 
 #define CSI_QUEUE_DEPTH 16
 #define MAX_SUBCARRIERS 128

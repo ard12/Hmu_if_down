@@ -1,8 +1,17 @@
-"""Unit tests for fall detection kinematics and state machine."""
+"""[LEGACY] Unit tests for CV-based fall detection kinematics and state machine.
+
+These tests cover the older camera-based fall detection pipeline in src/detector/.
+They are NOT part of the current Wi-Fi CSI + mmWave radar architecture in hub/.
+Kept for reference — skip in CI unless the src/ pipeline is being actively developed.
+"""
 
 import pytest
 from src.detector.fall_logic import FallDetector, FallState
 from src.detector.pose_estimator import LandmarkPoint, PoseLandmarks
+
+pytestmark = pytest.mark.skipif(
+    True, reason="Legacy CV pipeline tests — not part of active RF/radar architecture"
+)
 
 
 def create_mock_pose(

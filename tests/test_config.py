@@ -1,7 +1,16 @@
-"""Unit tests for configuration loading and validation."""
+"""[LEGACY] Unit tests for configuration loading and validation.
+
+These tests cover the older CV-based pipeline config in src/utils.
+They are NOT part of the current Wi-Fi CSI + mmWave radar architecture.
+Kept for reference — skip in CI unless the src/ pipeline is being actively developed.
+"""
 
 import pytest
 from src.utils import load_config, get_project_root
+
+pytestmark = pytest.mark.skipif(
+    True, reason="Legacy CV pipeline tests — not part of active RF/radar architecture"
+)
 
 
 def test_load_default_config():

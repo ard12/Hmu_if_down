@@ -76,6 +76,24 @@ An intelligent, non-invasive, privacy-preserving fall detection platform enginee
 
 ---
 
+## Power Budget & Deployment Constraints
+
+> [!IMPORTANT]
+> **All ESP32 nodes must be wall-powered (USB 5V).** Battery operation is not viable.
+
+The 100 Hz ESP-NOW active injection architecture prevents any ESP32 sleep modes. Each node will draw **~150–200 mA continuously** (Wi-Fi Tx + CSI Rx + UDP streaming). Use standard 5V/1A USB adapters for each node.
+
+| Node | Role | Current Draw | Power Source |
+|------|------|-------------|--------------|
+| Node 0 (AP/Tx) | 100 Hz ESP-NOW broadcast | ~160 mA | USB 5V adapter |
+| Nodes 1–3 (Rx) | CSI capture + UDP stream | ~180 mA | USB 5V adapter |
+| mmWave Gateway | UART parse + UDP forward | ~120 mA | USB 5V adapter |
+| 60 GHz Radar Module | FMCW sensing | ~100 mA | Powered via ESP32 5V pin |
+
+**Multi-Person Limitation:** The PCA-based motion extraction targets the dominant eigenvector. With 2+ people in the room, the CSI subsystem may produce unreliable velocity estimates. When the radar detects multiple targets, the system should be configured to rely solely on mmWave altitude tracking.
+
+**Network:** All firmware nodes use **UDP broadcast** (`255.255.255.255`) by default — no hardcoded hub IP required. The hub binds on `0.0.0.0` and receives packets from any node on the local network.
+
 ## Room Geometry & Node Placement
 
 Because human falls are **vertical kinetic events** ($1.7\,\text{m} \rightarrow 0\,\text{m}$), 3D spatial positioning maximizes Doppler shift sensitivity:

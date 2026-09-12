@@ -25,7 +25,7 @@ static const char *TAG = "MMWAVE_GATEWAY";
 #define RX_BUF_SIZE 1024
 
 #define DEST_PORT 5556
-#define DEST_IP "192.168.4.2"
+#define DEST_IP "255.255.255.255"  // Broadcast; hub binds on 0.0.0.0:5556
 
 static int s_udp_sock = -1;
 static struct sockaddr_in s_dest_addr;

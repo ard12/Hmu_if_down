@@ -2,11 +2,13 @@
 
 import csv
 from datetime import datetime
+import json
 from pathlib import Path
 import sys
 import threading
 import time
 from typing import Optional
+import urllib.request
 
 try:
     import winsound
@@ -25,6 +27,10 @@ class AlertDispatcher:
         beep_duration_ms: int = 600,
         cooldown_sec: float = 5.0,
         log_dir: str = "incidents",
+        mqtt_broker: Optional[str] = None,
+        mqtt_port: int = 1883,
+        mqtt_topic: str = "falldetect/alert",
+        webhook_url: Optional[str] = None,
     ):
         self.enable_sound = enable_sound
         self.beep_freq = beep_freq
@@ -34,6 +40,33 @@ class AlertDispatcher:
         self.last_alert_time: float = 0.0
         self._beeping = False
         self._lock = threading.Lock()
+
+        # MQTT and webhook alerting
+        self.mqtt_broker = mqtt_broker
+        self.mqtt_port = mqtt_port
+        self.mqtt_topic = mqtt_topic
+        self._mqtt_topic = mqtt_topic
+        self.webhook_url = webhook_url
+        self._webhook_url = webhook_url
+        self._mqtt_client = None
+
+        if mqtt_broker:
+            try:
+                import paho.mqtt.client as mqtt
+                try:
+                    if hasattr(mqtt, "CallbackAPIVersion"):
+                        self._mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+                    else:
+                        self._mqtt_client = mqtt.Client()
+                except Exception:
+                    self._mqtt_client = mqtt.Client()
+                self._mqtt_client.connect(mqtt_broker, mqtt_port)
+            except ImportError:
+                print("[AlertDispatcher] Warning: paho-mqtt is not installed. MQTT alerting disabled.")
+                self._mqtt_client = None
+            except Exception as e:
+                print(f"[AlertDispatcher] Warning: Failed to connect to MQTT broker ({mqtt_broker}:{mqtt_port}): {e}")
+                self._mqtt_client = None
 
         # Set up CSV incident logger
         self.log_dir = Path(__file__).resolve().parent.parent / log_dir
@@ -76,12 +109,43 @@ class AlertDispatcher:
             if self.enable_sound and not self._beeping:
                 threading.Thread(target=self._beep_worker, daemon=True).start()
 
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
             # Log incident to disk
             try:
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 with open(self.csv_path, "a", newline="", encoding="utf-8") as f:
                     writer = csv.writer(f)
                     writer.writerow([timestamp, modality, event_name, details])
                 print(f"\n[ALERT] [{timestamp}] {modality.upper()} -> {event_name}: {details}")
             except Exception as e:
                 print(f"[AlertDispatcher] Logging error: {e}", file=sys.stderr)
+
+            # JSON payload for external alert dispatchers
+            payload = {
+                "timestamp": timestamp,
+                "modality": modality,
+                "event": event_name,
+                "details": details,
+            }
+            payload_json = json.dumps(payload)
+
+            # MQTT notification
+            if self._mqtt_client is not None:
+                try:
+                    self._mqtt_client.publish(self._mqtt_topic, payload_json)
+                except Exception as e:
+                    print(f"[AlertDispatcher] MQTT publish error: {e}", file=sys.stderr)
+
+            # Webhook notification
+            if self._webhook_url is not None:
+                try:
+                    req = urllib.request.Request(
+                        self._webhook_url,
+                        data=payload_json.encode("utf-8"),
+                        headers={"Content-Type": "application/json"},
+                    )
+                    resp = urllib.request.urlopen(req, timeout=5.0)
+                    if hasattr(resp, "close"):
+                        resp.close()
+                except Exception as e:
+                    print(f"[AlertDispatcher] Webhook error: {e}", file=sys.stderr)
