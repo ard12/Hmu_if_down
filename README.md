@@ -6,6 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](deploy/Dockerfile)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-MQTT%20Discovery-41BDF5.svg)](config/ha_automations.yaml)
+[![Audit Log](https://img.shields.io/badge/Audit%20Log-Living%20Document-orange.svg)](SYSTEM_AUDIT_AND_FINDINGS.md)
 
 An intelligent, non-invasive, privacy-preserving fall detection platform engineered for elderly monitoring and healthcare facilities. Operates completely **device-free** (no wearables, pendants, or intrusive cameras) by combining two complementary wireless sensing paradigms:
 
@@ -14,6 +15,8 @@ An intelligent, non-invasive, privacy-preserving fall detection platform enginee
 3. **Dual-Sensor Fusion Engine**: Cross-verifies wide-area RF multipath disturbances with centimeter-accurate floor height detection and a probabilistic gradient-boosted ML classifier to achieve near-zero false alarms.
 4. **Real-Time Web Telemetry HUD**: Zero-npm, canvas-rendered dashboard streaming live Doppler waterfall spectra, altitude gauges, and incident logs via WebSockets.
 5. **Smart Home & Edge Ready**: Native Home Assistant MQTT Auto-Discovery and Docker Compose deployment with host networking.
+6. **Detailed Audit & Technical Findings**: Consult [**`SYSTEM_AUDIT_AND_FINDINGS.md`**](SYSTEM_AUDIT_AND_FINDINGS.md) for the comprehensive living engineering log, physics calculations, FMEA edge cases, and architectural benchmarks.
+
 
 ---
 
