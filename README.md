@@ -4,12 +4,16 @@
 [![Python 3.10 | 3.11](https://img.shields.io/badge/python-3.10%20%7C%203.11-blue.svg)](https://www.python.org/)
 [![ESP-IDF](https://img.shields.io/badge/ESP--IDF-v5.0+-red.svg)](https://docs.espressif.com/projects/esp-idf/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](deploy/Dockerfile)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-MQTT%20Discovery-41BDF5.svg)](config/ha_automations.yaml)
 
 An intelligent, non-invasive, privacy-preserving fall detection platform engineered for elderly monitoring and healthcare facilities. Operates completely **device-free** (no wearables, pendants, or intrusive cameras) by combining two complementary wireless sensing paradigms:
 
 1. **Plan 1 (Primary)**: **4-Node Wi-Fi CSI Active Sensing Mesh** (1 AP / Transmitter + 3 Receivers / Trackers using ESP-NOW @ 100 Hz).
 2. **Plan 2 (High-Reliability)**: **ESP32 + 60 GHz mmWave FMCW Radar** (Direct 3D centroid altitude tracking and posture classification).
-3. **Dual-Sensor Fusion Engine**: Cross-verifies wide-area RF multipath disturbances with centimeter-accurate floor height detection to achieve near-zero false alarms.
+3. **Dual-Sensor Fusion Engine**: Cross-verifies wide-area RF multipath disturbances with centimeter-accurate floor height detection and a probabilistic gradient-boosted ML classifier to achieve near-zero false alarms.
+4. **Real-Time Web Telemetry HUD**: Zero-npm, canvas-rendered dashboard streaming live Doppler waterfall spectra, altitude gauges, and incident logs via WebSockets.
+5. **Smart Home & Edge Ready**: Native Home Assistant MQTT Auto-Discovery and Docker Compose deployment with host networking.
 
 ---
 
@@ -38,6 +42,7 @@ An intelligent, non-invasive, privacy-preserving fall detection platform enginee
                     | * PCA Dimensionality Red. |
                     | * Doppler Velocity (STFT) |
                     | * 3-Link Coincidence Vote |
+                    | * Gradient-Boosted ML Clf |
                     +-------------+-------------+
                                   |
                                   +<--------- [Plan 2: 60 GHz mmWave Radar]
@@ -47,14 +52,18 @@ An intelligent, non-invasive, privacy-preserving fall detection platform enginee
                     | Dual-Modality Fusion      |
                     | * Consensus State Machine |
                     | * Inactivity Timer (>=4s) |
-                    +-------------+-------------+
-                                  |
-                                  v
-                    +---------------------------+
-                    | Alert & Siren Dispatcher  |
-                    | * Audible Windows Beep    |
-                    | * CSV Incident Logging    |
-                    +---------------------------+
+                    | * P(fall) Score Weighting |
+                    +------+-------------+------+
+                           |             |
+            +--------------+             +--------------+
+            |                                           |
+            v                                           v
++-----------------------+                   +-----------------------+
+| Real-Time Web HUD     |                   | Alert & Integrations  |
+| * Doppler Waterfall   |                   | * Home Assistant MQTT |
+| * Z-Axis Alt Chart    |                   | * Siren Beep / Audio  |
+| * Node Mesh Badges    |                   | * CSV Incident Log    |
++-----------------------+                   +-----------------------+
 ```
 
 ---
@@ -90,9 +99,9 @@ The 100 Hz ESP-NOW active injection architecture prevents any ESP32 sleep modes.
 | mmWave Gateway | UART parse + UDP forward | ~120 mA | USB 5V adapter |
 | 60 GHz Radar Module | FMCW sensing | ~100 mA | Powered via ESP32 5V pin |
 
-**Multi-Person Limitation:** The PCA-based motion extraction targets the dominant eigenvector. With 2+ people in the room, the CSI subsystem may produce unreliable velocity estimates. When the radar detects multiple targets, the system should be configured to rely solely on mmWave altitude tracking.
+**Multi-Person Limitation:** The PCA-based motion extraction targets the dominant eigenvector. With 2+ people in the room, the CSI subsystem may produce mixed velocity estimates. When the radar detects multiple targets, the system should rely on mmWave centroid altitude tracking.
 
-**Network:** All firmware nodes use **UDP broadcast** (`255.255.255.255`) by default — no hardcoded hub IP required. The hub binds on `0.0.0.0` and receives packets from any node on the local network.
+**Network:** All firmware nodes use **UDP broadcast** (`255.255.255.255`) by default — no hardcoded hub IP required. The hub binds on `0.0.0.0` and receives packets from any node on the local subnet.
 
 ## Room Geometry & Node Placement
 
@@ -147,41 +156,117 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 2. Run Interactive Simulation Demo
-Experience live multi-link CSI and mmWave radar detection without physical hardware:
+### 2. Run Interactive Simulation Demo & Web HUD
+Experience live multi-link CSI and mmWave radar detection with the interactive Web HUD without physical hardware:
 ```powershell
-python hub/server.py --demo
+python hub/server.py --demo --web
 ```
+Open **`http://localhost:8000`** in your browser to observe the live Doppler waterfall spectra, altitude gauge, and real-time state transitions.
 
-### 3. Run Live Modes
+### 3. Run Live Sensing Modes
 ```powershell
 # Plan 1: 4-Node Wi-Fi CSI Mode (UDP port 5555)
-python hub/server.py --mode csi
+python hub/server.py --mode csi --web
 
 # Plan 2: mmWave Radar Mode (UDP port 5556)
-python hub/server.py --mode radar
+python hub/server.py --mode radar --web
 
-# Dual-Sensor Fusion Mode (Combines both modalities)
-python hub/server.py --mode fusion
+# Dual-Sensor Fusion Mode (Combines both modalities + ML)
+python hub/server.py --mode fusion --web
+
+# Enable Home Assistant MQTT Auto-Discovery
+python hub/server.py --mode fusion --web --mqtt-broker 192.168.1.50 --ha-discovery
 ```
+
+---
+
+## Multimodal Dataset Recorder & Replay Tool
+
+Record real-world Wi-Fi CSI matrices and mmWave radar telemetry into compressed `.npz` datasets with JSON metadata for model training and benchmark verification:
+
+```powershell
+# Record 30 seconds of live activity labeled as 'fall'
+python -m hub.recorder --duration 30 --label fall --output datasets/fall_experiment_01.npz
+
+# Record simulated data for testing without live nodes
+python -m hub.recorder --simulate --duration 10 --label simulated_fall --output datasets/test.npz
+
+# Replay recorded dataset through the detection engine and Web HUD
+python hub/server.py --replay datasets/fall_experiment_01.npz --web
+```
+
+---
+
+## Probabilistic Machine Learning Classifier
+
+In addition to thresholded PCA Doppler analysis, the system includes a supervised `HistGradientBoostingClassifier` (`hub/csi_pipeline/classifier.py`):
+- Extracts a 9-dimensional kinematic feature vector per window:
+  - Doppler sub-band energies: `0-5 Hz`, `5-15 Hz`, `15-25 Hz`, `25-40 Hz`
+  - High-to-low kinetic ratio
+  - Dominant Doppler velocity
+  - Total energy surge ratio
+  - Temporal variance decay
+  - Spectral entropy
+- Estimates the posterior probability of a human fall $P(\text{fall}) \in [0.0, 1.0]$.
+- Integrates into `DualFusionEngine` for hybrid confidence escalation.
+
+---
+
+## Home Assistant MQTT Integration
+
+The system natively implements the Home Assistant MQTT Discovery protocol (`hub/ha_discovery.py`):
+
+- **13 Auto-Discovered Entities**:
+  - `binary_sensor.fall_detection_hub_fall_detected` (Safety device class)
+  - `sensor.fall_detection_hub_system_state`
+  - `sensor.fall_detection_hub_radar_height` (Centroid distance in meters)
+  - `sensor.fall_detection_hub_radar_posture` (Standing / Sitting / Lying Down)
+  - `sensor.fall_detection_hub_radar_dwell` (Seconds on floor)
+  - `sensor.fall_detection_hub_ml_fall_probability` (0–100%)
+  - `sensor.fall_detection_hub_csi_node_<1..3>_velocity`
+  - `sensor.fall_detection_hub_csi_node_<1..3>_surge`
+  - `button.fall_detection_hub_reset_alarm`
+- Ready-to-use automations are provided in [`config/ha_automations.yaml`](config/ha_automations.yaml) for critical sirens, emergency light flashing, and smart speaker announcements.
+
+---
+
+## Docker Edge Deployment
+
+Deploy the entire fall detection hub and an optional local Mosquitto MQTT broker on edge devices (Raspberry Pi 4/5, x86 mini PCs):
+
+```powershell
+cd deploy
+
+# Start Hub and Mosquitto broker
+docker compose up -d
+
+# View live logs
+docker compose logs -f hub
+```
+
+> [!TIP]
+> The container uses `network_mode: "host"` so the hub can directly receive low-latency UDP broadcast/multicast packets on ports 5555 and 5556 without NAT overhead.
 
 ---
 
 ## Running Automated Tests
 
-Run the comprehensive test suite covering both signal processing pipelines and consensus logic:
+Run the comprehensive test suite covering signal processing, ML classification, web endpoints, and consensus logic:
 
 ```powershell
 pytest -v tests/
 ```
 
-Test coverage includes:
-- Raw CSI binary packet decoding (`CSIF` protocol) and corruption rejection.
-- Zero-phase Butterworth filtering and subcarrier PCA decomposition.
-- Doppler velocity estimation ($v = \frac{\lambda f_D}{2}$).
-- 3-Link spatial coincidence window voting and floor quiescence verification.
-- 60 GHz mmWave radar binary frame parser (`0x53 0x59`) with checksum validation.
-- Dual-sensor cross-modal consensus engine.
+Test coverage:
+- `test_csi_pipeline.py`: Raw CSI packet decoding (`CSIF`), Butterworth filtering, PCA, and Doppler velocity.
+- `test_mmwave_parser.py`: 60 GHz mmWave radar binary frame parser (`0x53 0x59`) with checksum validation.
+- `test_classifier.py`: 9D kinematic feature extraction, ML probability discrimination, and hybrid fusion escalation.
+- `test_dashboard.py`: FastAPI routes, status API, and WebSocket streaming.
+- `test_recorder.py`: Multimodal session buffer synchronization and `.npz` dataset replay.
+- `test_ha_discovery.py`: Home Assistant MQTT discovery schemas, retained announcements, and automation YAML validation.
+- `test_integration.py`: Multi-link consensus, false positive rejection, sequence gap interpolation, and node health monitoring.
+- `test_alert_dispatcher.py`: Cooldown rate-limiting, CSV logging, MQTT alerts, and HTTP webhooks.
+- `test_calibrate.py`: Ambient noise floor baseline calibration.
 
 ---
 
@@ -192,43 +277,41 @@ Fall_Detection/
 ├── config/
 │   ├── csi_config.yaml           # Wi-Fi CSI thresholds & network settings
 │   ├── radar_config.yaml         # mmWave radar parameters & height thresholds
-│   └── calibration.yaml          # Auto-generated room noise profile & thresholds
+│   ├── calibration.yaml          # Auto-generated room noise profile & thresholds
+│   └── ha_automations.yaml       # Home Assistant automation templates
+├── deploy/
+│   ├── Dockerfile                # Multi-arch edge deployment container
+│   ├── docker-compose.yml        # Hub + Mosquitto broker compose stack
+│   └── mosquitto.conf            # Local MQTT broker configuration
 ├── firmware/
 │   ├── wifi_csi/
 │   │   ├── transmitter_ap/       # Node 0 (AP): 100 Hz ESP-NOW active injector
 │   │   │   ├── CMakeLists.txt
-│   │   │   └── main/             # Standard ESP-IDF component directory
-│   │   │       ├── CMakeLists.txt
-│   │   │       └── main.c
+│   │   │   └── main/             # ESP-IDF component directory
 │   │   └── tracker_node/         # Nodes 1, 2, 3: CSI receiver & UDP streamer
 │   │       ├── CMakeLists.txt
 │   │       └── main/
-│   │           ├── CMakeLists.txt
-│   │           └── main.c
 │   └── mmwave_radar/             # Plan 2: ESP32 + 60GHz mmWave radar gateway
 │       ├── CMakeLists.txt
 │       └── main/
-│           ├── CMakeLists.txt
-│           ├── main.c
-│           ├── mmwave_parser.c
-│           └── mmwave_parser.h
 ├── hub/
 │   ├── csi_pipeline/
 │   │   ├── preprocessor.py       # Denoising, phase unwrapping & Butterworth filter
 │   │   ├── pca_features.py       # PCA dimensionality & Doppler velocity STFT
-│   │   └── multi_link_fusion.py  # 3-Link coincidence voting & stillness state machine
+│   │   ├── multi_link_fusion.py  # 3-Link coincidence voting & stillness state machine
+│   │   └── classifier.py         # 9D kinematic feature extractor & ML classifier
+│   ├── dashboard/
+│   │   ├── app.py                # FastAPI + WebSockets telemetry broadcaster
+│   │   └── static/               # Zero-npm canvas HUD (Doppler waterfall, Z-axis)
 │   ├── mmwave_pipeline/
 │   │   └── radar_receiver.py     # Binary & JSON protocol decoder & height tracker
 │   ├── alert_dispatcher.py       # Sirens, CSV logger, MQTT & HTTP Webhooks
 │   ├── calibrate.py              # Room noise floor calibration & threshold generator
-│   ├── fusion_engine.py          # Dual-modality consensus engine
-│   └── server.py                 # Multi-threaded hub server & live demo simulator
-├── tests/
-│   ├── test_csi_pipeline.py      # Wi-Fi CSI signal tests
-│   ├── test_mmwave_parser.py     # Radar frame decoding tests
-│   ├── test_integration.py       # Full pipeline integration tests
-│   ├── test_alert_dispatcher.py  # MQTT, Webhook & Siren tests
-│   └── test_calibrate.py         # Room calibration tests
+│   ├── fusion_engine.py          # Dual-modality consensus & hybrid ML engine
+│   ├── ha_discovery.py           # Home Assistant MQTT Auto-Discovery generator
+│   ├── recorder.py               # Multimodal dataset recorder (.npz + JSON)
+│   └── server.py                 # Multi-threaded hub server, replay, & demo simulator
+├── tests/                        # Full unit and integration test suite (40+ tests)
 ├── .gitignore
 ├── LICENSE                       # MIT License
 ├── README.md                     # Documentation

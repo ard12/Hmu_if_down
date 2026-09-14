@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fall Detection Telemetry HUD</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="dashboard-container">
+    <!-- Header -->
+    <header>
+      <div class="header-left">
+        <div class="system-title">
+          <span>📡</span> Multi-Modal Fall Detection HUD
+        </div>
+        <div id="systemStateBadge" class="status-badge badge-normal">
+          SYSTEM NORMAL
+        </div>
+      </div>
+      <div class="header-controls">
+        <button id="muteBtn">🔊 Mute Audio</button>
+      </div>
+    </header>
+
+    <!-- Overview Stat Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-title">Radar Centroid Height</div>
+        <div class="stat-value" id="statHeight" style="color: var(--color-blue)">1.65 m</div>
+        <div class="stat-sub">Floor Threshold &lt; 0.35m</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Target Posture</div>
+        <div class="stat-value" id="statPosture" style="color: var(--color-green)">STANDING</div>
+        <div class="stat-sub">60GHz FMCW Radar</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Link 1 (Rx1 Mid-Wall)</div>
+        <div class="stat-value" id="nodeStat1" style="font-size: 1.25rem; color: var(--text-primary)">0.00 m/s</div>
+        <div class="stat-sub">100 Hz CSI Doppler Link</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Link 2 (Rx2 Mid-Wall)</div>
+        <div class="stat-value" id="nodeStat2" style="font-size: 1.25rem; color: var(--text-primary)">0.00 m/s</div>
+        <div class="stat-sub">100 Hz CSI Doppler Link</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Link 3 (Rx3 Baseboard)</div>
+        <div class="stat-value" id="nodeStat3" style="font-size: 1.25rem; color: var(--text-primary)">0.00 m/s</div>
+        <div class="stat-sub">Ground-Level Multipath</div>
+      </div>
+    </div>
+
+    <!-- Visualizations: Spectrograms & Height Timeline -->
+    <div class="visual-grid">
+      <!-- Multi-Link Spectrogram Waterfall -->
+      <div class="panel-card">
+        <div class="panel-header">
+          <div class="panel-title">Multi-Link Doppler Spectrogram (STFT Waterfall)</div>
+          <span style="font-size: 0.8rem; color: var(--text-muted)">Live Frequency Shift [-50 Hz, +50 Hz]</span>
+        </div>
+        <div class="spectrogram-row">
+          <div class="spec-container">
+            <div class="spec-label">
+              <span>Link 1 (Node 1)</span>
+              <span id="specRate1" style="color: var(--color-blue)">100 Hz</span>
+            </div>
+            <canvas id="specNode1" class="spectrogram-canvas"></canvas>
+          </div>
+          <div class="spec-container">
+            <div class="spec-label">
+              <span>Link 2 (Node 2)</span>
+              <span id="specRate2" style="color: var(--color-blue)">100 Hz</span>
+            </div>
+            <canvas id="specNode2" class="spectrogram-canvas"></canvas>
+          </div>
+          <div class="spec-container">
+            <div class="spec-label">
+              <span>Link 3 (Node 3 Ground)</span>
+              <span id="specRate3" style="color: var(--color-blue)">100 Hz</span>
+            </div>
+            <canvas id="specNode3" class="spectrogram-canvas"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Radar Centroid Height Timeline -->
+      <div class="panel-card">
+        <div class="panel-header">
+          <div class="panel-title">Altitude Timeline (Z-Axis)</div>
+          <span style="font-size: 0.8rem; color: var(--color-red)">Floor: &lt;0.35m</span>
+        </div>
+        <canvas id="heightChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Incident Log Table -->
+    <div class="panel-card">
+      <div class="panel-header">
+        <div class="panel-title">Real-Time Event & Incident Log</div>
+        <span style="font-size: 0.8rem; color: var(--text-muted)">Logged to incidents/incidents.csv</span>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 180px">Timestamp</th>
+              <th style="width: 120px">Modality</th>
+              <th style="width: 180px">Event</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody id="incidentTableBody">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/dashboard.js"></script>
+</body>
+</html>

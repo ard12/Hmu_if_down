@@ -1,0 +1,121 @@
+# ==============================================================================
+# Home Assistant Automation Templates: Multi-Modal Fall Detection
+# ==============================================================================
+# Include these automations in your Home Assistant configuration (automations.yaml)
+# or import them through the HA Automations UI.
+#
+# Prerequisites:
+# - MQTT Integration configured with Auto-Discovery enabled
+# - Mobile App Integration or Push notification service
+# - (Optional) Smart lighting (Philips Hue, Zigbee2MQTT, etc.)
+# - (Optional) TTS / Smart speaker (Sonos, Google Cast, Alexa)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Automation 1: CRITICAL EMERGENCY - Fall Detected
+# Triggers immediately upon high-confidence fall confirmation from Hub.
+# ------------------------------------------------------------------------------
+- id: 'fall_detection_emergency_alert'
+  alias: '[Fall Detection] Critical Fall Emergency Alert'
+  description: 'Triggers high-priority notifications, turns lights red, and plays emergency siren when a fall is confirmed.'
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.fall_detection_hub_fall_detected
+      to: 'on'
+  action:
+    # 1. High-priority mobile notification with actionable emergency options
+    - service: notify.notify
+      data:
+        title: "CRITICAL: FALL DETECTED!"
+        message: "A human fall has been detected by multi-link CSI and mmWave radar at {{ now().strftime('%H:%M:%S') }}."
+        data:
+          push:
+            sound: "critical"
+            volume: 1.0
+          actions:
+            - action: "ACKNOWLEDGE_FALL"
+              title: "Acknowledge Alert"
+            - action: "CALL_EMERGENCY"
+              title: "Call Emergency (911/112)"
+
+    # 2. Flash all ambient room lights in emergency red
+    - service: light.turn_on
+      target:
+        entity_id: group.all_lights
+      data:
+        brightness: 255
+        rgb_color: [255, 0, 0]
+        flash: long
+
+    # 3. Audio TTS announcement on household smart speakers
+    - service: tts.speak
+      target:
+        entity_id: media_player.living_room_speaker
+      data:
+        media_player_entity_id: media_player.living_room_speaker
+        message: "Attention. A fall has been detected. Please check on the occupant immediately."
+
+  mode: restart
+
+# ------------------------------------------------------------------------------
+# Automation 2: WARNING - Fall Suspected Pre-Alert
+# Triggers on preliminary kinetic burst prior to confirmation dwell.
+# ------------------------------------------------------------------------------
+- id: 'fall_detection_suspected_warning'
+  alias: '[Fall Detection] Fall Suspected Warning'
+  description: 'Notifies caregiver of suspected rapid downward velocity while cross-verification is underway.'
+  trigger:
+    - platform: state
+      entity_id: sensor.fall_detection_hub_system_state
+      to: 'Fall Suspected'
+  action:
+    - service: notify.notify
+      data:
+        title: "Warning: Fall Suspected"
+        message: "Rapid downward motion burst detected. Waiting for post-impact dwell confirmation."
+  mode: single
+
+# ------------------------------------------------------------------------------
+# Automation 3: RECOVERY / NORMALIZED - Fall Cleared
+# Triggers when system returns to Normal or occupant recovers.
+# ------------------------------------------------------------------------------
+- id: 'fall_detection_recovered_clear'
+  alias: '[Fall Detection] Fall Cleared / Recovered'
+  description: 'Restores room lighting and sends recovery notification when subject resumes standing or alert is dismissed.'
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.fall_detection_hub_fall_detected
+      from: 'on'
+      to: 'off'
+  action:
+    # 1. Restore lights to soft warm white
+    - service: light.turn_on
+      target:
+        entity_id: group.all_lights
+      data:
+        brightness: 180
+        color_temp: 350
+
+    # 2. Inform caregiver of resolution
+    - service: notify.notify
+      data:
+        title: "Fall Alert Resolved"
+        message: "Occupant has recovered or normal activity has resumed at {{ now().strftime('%H:%M:%S') }}."
+  mode: single
+
+# ------------------------------------------------------------------------------
+# Automation 4: Reset Button Action
+# Allows resetting active alarm state from Home Assistant dashboard.
+# ------------------------------------------------------------------------------
+- id: 'fall_detection_reset_alarm'
+  alias: '[Fall Detection] Reset Alarm Trigger'
+  description: 'Publishes reset command back to the Fall Detection Hub.'
+  trigger:
+    - platform: state
+      entity_id: button.fall_detection_hub_reset_alarm
+  action:
+    - service: mqtt.publish
+      data:
+        topic: "fall_detection/command/reset"
+        payload: "RESET"
+  mode: single

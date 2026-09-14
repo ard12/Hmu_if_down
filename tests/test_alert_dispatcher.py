@@ -15,8 +15,17 @@ def test_default_init(tmp_path):
     assert dispatcher.cooldown_sec == 5.0
 
 
-def test_mqtt_paho_missing_warning(tmp_path, capsys):
-    # paho-mqtt is not installed in the environment
+def test_mqtt_paho_missing_warning(tmp_path, capsys, monkeypatch):
+    import builtins
+    real_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if "paho" in name:
+            raise ImportError("No module named 'paho'")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+
     dispatcher = AlertDispatcher(
         enable_sound=False,
         log_dir=str(tmp_path),

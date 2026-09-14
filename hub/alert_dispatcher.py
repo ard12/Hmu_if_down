@@ -149,3 +149,10 @@ class AlertDispatcher:
                         resp.close()
                 except Exception as e:
                     print(f"[AlertDispatcher] Webhook error: {e}", file=sys.stderr)
+
+            # Web HUD broadcast
+            try:
+                from hub.dashboard.app import broadcaster
+                broadcaster.trigger_alert(modality, event_name, details)
+            except Exception:
+                pass

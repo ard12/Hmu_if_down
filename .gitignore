@@ -48,6 +48,9 @@ logs/
 incidents/
 output/
 recordings/
+datasets/*.npz
+datasets/*.json
+!datasets/.gitkeep
 
 # Pytest / Coverage
 .pytest_cache/

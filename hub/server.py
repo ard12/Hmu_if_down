@@ -8,6 +8,7 @@ import socket
 import sys
 import threading
 import time
+from typing import Optional
 
 # Ensure project root is on sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -16,10 +17,12 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import numpy as np
 from hub.alert_dispatcher import AlertDispatcher
+from hub.csi_pipeline.classifier import FallClassifier
 from hub.csi_pipeline.multi_link_fusion import MultiLinkFusionEngine
 from hub.csi_pipeline.pca_features import CSIPCAExtractor
 from hub.csi_pipeline.preprocessor import CSIPreprocessor
 from hub.fusion_engine import DualFusionEngine, OperatingMode, UnifiedFallState
+from hub.ha_discovery import HomeAssistantMQTTDiscoveryManager
 from hub.mmwave_pipeline.radar_receiver import RadarFallState, RadarPosture, RadarReceiver, RadarTelemetry
 
 
@@ -61,6 +64,46 @@ def parse_args():
         "--demo",
         action="store_true",
         help="Run simulated live multi-link CSI and radar replay demo",
+    )
+    parser.add_argument(
+        "--web",
+        action="store_true",
+        help="Launch real-time web telemetry dashboard HUD",
+    )
+    parser.add_argument(
+        "--web-port",
+        type=int,
+        default=8000,
+        help="Listening port for web dashboard HUD (default: 8000)",
+    )
+    parser.add_argument(
+        "--replay",
+        type=Path,
+        default=None,
+        help="Replay recorded multimodal session (.npz) through detection pipeline",
+    )
+    parser.add_argument(
+        "--mqtt-broker",
+        type=str,
+        default=None,
+        help="MQTT Broker host for alerting and Home Assistant integration",
+    )
+    parser.add_argument(
+        "--mqtt-port",
+        type=int,
+        default=1883,
+        help="MQTT Broker port (default: 1883)",
+    )
+    parser.add_argument(
+        "--ha-discovery",
+        action="store_true",
+        help="Announce Home Assistant MQTT Auto-Discovery entities on startup",
+    )
+    parser.add_argument(
+        "--ml-model",
+        type=Path,
+        default=None,
+        help="Path to trained FallClassifier model (.pkl)",
     )
     return parser.parse_args()
 
@@ -136,6 +179,8 @@ def csi_listener_thread(
     fusion_engine: DualFusionEngine,
     node_buffers: dict,
     stop_event: threading.Event,
+    classifier: Optional[FallClassifier] = None,
+    ha_manager: Optional[HomeAssistantMQTTDiscoveryManager] = None,
 ):
     """Receives UDP CSI packets, maintains per-node rolling buffers,
     and periodically runs PCA + velocity extraction → fusion engine."""
@@ -181,11 +226,45 @@ def csi_listener_thread(
             if window.shape[0] >= 32:
                 filtered = preprocessor.filter_stream(window)
                 features = pca_extractor.extract(node_id=node_id, filtered_data=filtered)
-                state = fusion_engine.update_csi(features)
+
+                ml_prob = 0.0
+                if classifier:
+                    ml_feat = classifier.extractor.extract_from_window(filtered)
+                    ml_prob = classifier.predict_proba(ml_feat)
+
+                state = fusion_engine.update_csi(features, ml_prob=ml_prob)
+
+                # Broadcast to Web HUD
+                try:
+                    from hub.dashboard.app import broadcaster
+                    psd = features.doppler_psd.tolist() if hasattr(features, "doppler_psd") and features.doppler_psd is not None else None
+                    broadcaster.update_csi(
+                        node_id=node_id,
+                        velocity=features.dominant_velocity_mps,
+                        surge=features.energy_surge_ratio,
+                        state=state.value,
+                        doppler_psd=psd,
+                    )
+                except Exception:
+                    pass
+
+                # Publish to Home Assistant MQTT
+                if ha_manager:
+                    try:
+                        ha_manager.publish_csi(
+                            node_id=node_id,
+                            velocity=features.dominant_velocity_mps,
+                            surge=features.energy_surge_ratio,
+                            state=state.value,
+                        )
+                        ha_manager.publish_ml_probability(ml_prob)
+                        ha_manager.publish_state(state.value)
+                    except Exception:
+                        pass
 
                 # Print live status
-                status_sym = "🟢" if state == UnifiedFallState.NORMAL else (
-                    "🟡" if state == UnifiedFallState.SUSPECTED else "🔴"
+                status_sym = "[OK]" if state == UnifiedFallState.NORMAL else (
+                    "[SUSPECT]" if state == UnifiedFallState.SUSPECTED else "[FALL]"
                 )
                 alive_nodes = [nid for nid, nb in node_buffers.items() if nb.is_alive]
                 print(f"\r[CSI] Node {node_id} | v={features.dominant_velocity_mps:.2f} m/s | "
@@ -204,6 +283,7 @@ def radar_listener_thread(
     radar_receiver: RadarReceiver,
     fusion_engine: DualFusionEngine,
     stop_event: threading.Event,
+    ha_manager: Optional[HomeAssistantMQTTDiscoveryManager] = None,
 ):
     """Receives UDP radar datagrams (JSON or binary) and feeds the fusion engine."""
 
@@ -228,8 +308,35 @@ def radar_listener_thread(
 
         if telemetry is not None:
             state = fusion_engine.update_radar(telemetry)
-            status_sym = "🟢" if state == UnifiedFallState.NORMAL else (
-                "🟡" if state == UnifiedFallState.SUSPECTED else "🔴"
+
+            # Broadcast to Web HUD
+            try:
+                from hub.dashboard.app import broadcaster
+                broadcaster.update_radar(
+                    height=telemetry.target_height_m,
+                    posture=telemetry.posture.value,
+                    fall_state=telemetry.fall_state.value,
+                    dwell=telemetry.dwell_time_sec,
+                    state=state.value,
+                )
+            except Exception:
+                pass
+
+            # Publish to Home Assistant MQTT
+            if ha_manager:
+                try:
+                    ha_manager.publish_radar(
+                        height=telemetry.target_height_m,
+                        posture=telemetry.posture.value,
+                        fall_state=telemetry.fall_state.value,
+                        dwell=telemetry.dwell_time_sec,
+                    )
+                    ha_manager.publish_state(state.value)
+                except Exception:
+                    pass
+
+            status_sym = "[OK]" if state == UnifiedFallState.NORMAL else (
+                "[SUSPECT]" if state == UnifiedFallState.SUSPECTED else "[FALL]"
             )
             print(f"\n[RADAR] Height={telemetry.target_height_m:.2f}m | "
                   f"Posture={telemetry.posture.value} | "
@@ -268,7 +375,12 @@ def node_health_monitor(
 # ---------------------------------------------------------------------------
 # Demo Mode
 # ---------------------------------------------------------------------------
-def run_demo(fusion_engine: DualFusionEngine):
+def run_demo(
+    fusion_engine: DualFusionEngine,
+    is_web: bool = False,
+    classifier: Optional[FallClassifier] = None,
+    ha_manager: Optional[HomeAssistantMQTTDiscoveryManager] = None,
+):
     """Simulates real-time CSI packets from 3 links and mmWave radar data."""
     print("\n" + "=" * 65)
     print("      STARTING LIVE MULTI-MODAL FALL DETECTION DEMO")
@@ -313,7 +425,39 @@ def run_demo(fusion_engine: DualFusionEngine):
 
             filtered = preprocessor.filter_stream(sim_amplitudes)
             features = pca_extractor.extract(node_id=node_id, filtered_data=filtered)
-            state = fusion_engine.update_csi(features, current_time=now)
+
+            ml_prob = 0.0
+            if classifier:
+                ml_feat = classifier.extractor.extract_from_window(filtered)
+                ml_prob = classifier.predict_proba(ml_feat)
+
+            state = fusion_engine.update_csi(features, current_time=now, ml_prob=ml_prob)
+
+            if ha_manager:
+                try:
+                    ha_manager.publish_csi(
+                        node_id=node_id,
+                        velocity=features.dominant_velocity_mps,
+                        surge=features.energy_surge_ratio,
+                        state=state.value,
+                    )
+                    ha_manager.publish_ml_probability(ml_prob)
+                except Exception:
+                    pass
+
+            if is_web:
+                try:
+                    from hub.dashboard.app import broadcaster
+                    psd = features.doppler_psd.tolist() if hasattr(features, "doppler_psd") and features.doppler_psd is not None else None
+                    broadcaster.update_csi(
+                        node_id=node_id,
+                        velocity=features.dominant_velocity_mps,
+                        surge=features.energy_surge_ratio,
+                        state=state.value,
+                        doppler_psd=psd,
+                    )
+                except Exception:
+                    pass
 
         # Simultaneously update mmWave radar simulation
         if is_lying_on_floor:
@@ -333,6 +477,31 @@ def run_demo(fusion_engine: DualFusionEngine):
 
         fusion_state = fusion_engine.update_radar(radar_telemetry)
 
+        if is_web:
+            try:
+                from hub.dashboard.app import broadcaster
+                broadcaster.update_radar(
+                    height=radar_telemetry.target_height_m,
+                    posture=radar_telemetry.posture.value,
+                    fall_state=radar_telemetry.fall_state.value,
+                    dwell=radar_telemetry.dwell_time_sec,
+                    state=fusion_state.value,
+                )
+            except Exception:
+                pass
+
+        if ha_manager:
+            try:
+                ha_manager.publish_radar(
+                    height=radar_telemetry.target_height_m,
+                    posture=radar_telemetry.posture.value,
+                    fall_state=radar_telemetry.fall_state.value,
+                    dwell=radar_telemetry.dwell_time_sec,
+                )
+                ha_manager.publish_state(fusion_state.value)
+            except Exception:
+                pass
+
         # Print real-time status HUD
         status_color = "\033[92m" if fusion_state == UnifiedFallState.NORMAL else (
             "\033[93m" if fusion_state == UnifiedFallState.SUSPECTED else "\033[91m"
@@ -347,16 +516,198 @@ def run_demo(fusion_engine: DualFusionEngine):
 
 
 # ---------------------------------------------------------------------------
+# Replay Mode (Offline Multimodal Dataset Playback)
+# ---------------------------------------------------------------------------
+def run_replay(
+    npz_path: Path,
+    fusion_engine: DualFusionEngine,
+    is_web: bool = False,
+    classifier: Optional[FallClassifier] = None,
+    ha_manager: Optional[HomeAssistantMQTTDiscoveryManager] = None,
+):
+    """Replays recorded CSI and Radar telemetry through the detection pipeline."""
+    if not npz_path.exists():
+        print(f"[ERROR] Dataset file not found: {npz_path}", file=sys.stderr)
+        return
+
+    print("\n" + "=" * 65)
+    print(f"      REPLAYING MULTIMODAL DATASET: {npz_path.name}")
+    print("=" * 65)
+
+    with np.load(npz_path) as data:
+        csi_node_ids = data.get("csi_node_ids", np.array([]))
+        csi_timestamps = data.get("csi_timestamps", np.array([]))
+        csi_amplitudes = data.get("csi_amplitudes", np.empty((0, 0)))
+        radar_timestamps = data.get("radar_timestamps", np.array([]))
+        radar_heights = data.get("radar_heights", np.array([]))
+        radar_postures = data.get("radar_postures", np.array([]))
+        radar_fall_states = data.get("radar_fall_states", np.array([]))
+        radar_dwells = data.get("radar_dwells", np.array([]))
+
+    preprocessor = CSIPreprocessor()
+    pca_extractor = CSIPCAExtractor()
+    node_buffers = {1: NodeBuffer(), 2: NodeBuffer(), 3: NodeBuffer()}
+
+    events = []
+    for i in range(len(csi_timestamps)):
+        events.append((csi_timestamps[i], "csi", i))
+    for j in range(len(radar_timestamps)):
+        events.append((radar_timestamps[j], "radar", j))
+    events.sort(key=lambda x: x[0])
+
+    print(f"Total events: {len(events)} ({len(csi_timestamps)} CSI frames, {len(radar_timestamps)} Radar frames)\n")
+
+    fall_detected_time = None
+    from hub.csi_pipeline.preprocessor import CSIPacket
+
+    for idx, (t_rel, ev_type, ev_idx) in enumerate(events):
+        if ev_type == "csi":
+            nid = int(csi_node_ids[ev_idx])
+            amps = csi_amplitudes[ev_idx]
+            if nid in node_buffers:
+                buf = node_buffers[nid]
+                pkt = CSIPacket(
+                    node_id=nid,
+                    rssi=-50,
+                    subcarrier_count=len(amps),
+                    timestamp_ms=int(t_rel * 1000),
+                    seq_num=ev_idx,
+                    amplitudes=amps,
+                    phases=np.zeros_like(amps),
+                )
+                buf.push(pkt)
+                if buf.total_received % 10 == 0:
+                    window = buf.get_window()
+                    if window.shape[0] >= 32:
+                        filtered = preprocessor.filter_stream(window)
+                        features = pca_extractor.extract(node_id=nid, filtered_data=filtered)
+
+                        ml_prob = 0.0
+                        if classifier:
+                            ml_feat = classifier.extractor.extract_from_window(filtered)
+                            ml_prob = classifier.predict_proba(ml_feat)
+
+                        st = fusion_engine.update_csi(features, current_time=time.time(), ml_prob=ml_prob)
+
+                        if ha_manager:
+                            try:
+                                ha_manager.publish_csi(
+                                    node_id=nid,
+                                    velocity=features.dominant_velocity_mps,
+                                    surge=features.energy_surge_ratio,
+                                    state=st.value,
+                                )
+                                ha_manager.publish_ml_probability(ml_prob)
+                                ha_manager.publish_state(st.value)
+                            except Exception:
+                                pass
+
+                        if is_web:
+                            try:
+                                from hub.dashboard.app import broadcaster
+                                psd = features.doppler_psd.tolist() if hasattr(features, "doppler_psd") and features.doppler_psd is not None else None
+                                broadcaster.update_csi(
+                                    node_id=nid,
+                                    velocity=features.dominant_velocity_mps,
+                                    surge=features.energy_surge_ratio,
+                                    state=st.value,
+                                    doppler_psd=psd,
+                                )
+                            except Exception:
+                                pass
+        elif ev_type == "radar":
+            h = float(radar_heights[ev_idx])
+            posture_val = radar_postures[ev_idx]
+            fall_st_val = radar_fall_states[ev_idx]
+            dwell = int(radar_dwells[ev_idx])
+            telemetry = RadarTelemetry(
+                fall_state=fall_st_val,
+                posture=posture_val,
+                target_height_m=h,
+                dwell_time_sec=dwell,
+            )
+            st = fusion_engine.update_radar(telemetry)
+            if st == UnifiedFallState.CONFIRMED and fall_detected_time is None:
+                fall_detected_time = t_rel
+
+            if ha_manager:
+                try:
+                    ha_manager.publish_radar(
+                        height=h,
+                        posture=str(posture_val),
+                        fall_state=str(fall_st_val),
+                        dwell=dwell,
+                    )
+                    ha_manager.publish_state(st.value)
+                except Exception:
+                    pass
+
+            if is_web:
+                try:
+                    from hub.dashboard.app import broadcaster
+                    broadcaster.update_radar(
+                        height=h,
+                        posture=str(posture_val),
+                        fall_state=str(fall_st_val),
+                        dwell=dwell,
+                        state=st.value,
+                    )
+                except Exception:
+                    pass
+
+        if idx % 20 == 0:
+            status_sym = "[OK]" if fusion_engine.unified_state == UnifiedFallState.NORMAL else (
+                "[SUSPECT]" if fusion_engine.unified_state == UnifiedFallState.SUSPECTED else "[FALL]"
+            )
+            print(f"\r[Replay: {t_rel:5.2f}s] {status_sym} State: {fusion_engine.unified_state.value:<15}", end="", flush=True)
+
+    print(f"\n\n[Replay Completed]")
+    if fall_detected_time is not None:
+        print(f"  Result: [!] FALL DETECTED at T={fall_detected_time:.2f}s")
+    else:
+        print(f"  Result: [OK] No fall detected (Normal activity)")
+
+
+# ---------------------------------------------------------------------------
 # Main Entry Point
 # ---------------------------------------------------------------------------
 def main():
     args = parse_args()
     mode = OperatingMode(args.mode)
-    alert = AlertDispatcher(enable_sound=not args.no_sound)
+    alert = AlertDispatcher(
+        enable_sound=not args.no_sound,
+        mqtt_broker=args.mqtt_broker,
+        mqtt_port=args.mqtt_port,
+    )
     fusion_engine = DualFusionEngine(mode=mode, alert_dispatcher=alert)
+    classifier = FallClassifier(model_path=args.ml_model)
+
+    ha_manager = None
+    if args.mqtt_broker and alert._mqtt_client:
+        ha_manager = HomeAssistantMQTTDiscoveryManager(
+            mqtt_client=alert._mqtt_client,
+            base_topic="fall_detection",
+        )
+        if args.ha_discovery:
+            count = ha_manager.announce_discovery()
+            print(f"  [HA]    Announced {count} Home Assistant MQTT discovery entities")
+
+    if args.web:
+        def _run_web(port: int):
+            import uvicorn
+            from hub.dashboard.app import app as web_app
+            uvicorn.run(web_app, host="0.0.0.0", port=port, log_level="warning")
+
+        web_thread = threading.Thread(target=_run_web, args=(args.web_port,), daemon=True)
+        web_thread.start()
+        print(f"  [WEB]   Dashboard HUD available at http://localhost:{args.web_port}")
 
     if args.demo:
-        run_demo(fusion_engine)
+        run_demo(fusion_engine, is_web=args.web, classifier=classifier, ha_manager=ha_manager)
+        return
+
+    if args.replay:
+        run_replay(args.replay, fusion_engine, is_web=args.web, classifier=classifier, ha_manager=ha_manager)
         return
 
     print("=" * 60)
@@ -383,7 +734,7 @@ def main():
 
         t = threading.Thread(
             target=csi_listener_thread,
-            args=(csi_sock, preprocessor, pca_extractor, fusion_engine, node_buffers, stop_event),
+            args=(csi_sock, preprocessor, pca_extractor, fusion_engine, node_buffers, stop_event, classifier, ha_manager),
             daemon=True,
         )
         threads.append(t)
@@ -398,7 +749,7 @@ def main():
 
         t = threading.Thread(
             target=radar_listener_thread,
-            args=(radar_sock, radar_receiver, fusion_engine, stop_event),
+            args=(radar_sock, radar_receiver, fusion_engine, stop_event, ha_manager),
             daemon=True,
         )
         threads.append(t)

@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  hub:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: fall_detection_hub
+    restart: unless-stopped
+    # host networking allows zero-latency reception of UDP CSI and radar multicast/broadcast frames
+    network_mode: "host"
+    volumes:
+      - ../incidents:/app/incidents
+      - ../datasets:/app/datasets
+      - ../config:/app/config:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: ["python", "-m", "hub.server", "--mode", "fusion", "--web", "--web-port", "8000"]
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: fall_detection_mqtt
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+
+volumes:
+  mosquitto_data:
+  mosquitto_log:

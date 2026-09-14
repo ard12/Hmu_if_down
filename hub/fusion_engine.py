@@ -31,18 +31,28 @@ class DualFusionEngine:
         mode: OperatingMode = OperatingMode.FUSION,
         alert_dispatcher: Optional[AlertDispatcher] = None,
         csi_engine: Optional[MultiLinkFusionEngine] = None,
+        ml_weight: float = 0.5,
     ):
         self.mode = mode
         self.alert = alert_dispatcher or AlertDispatcher()
         self.csi_engine = csi_engine or MultiLinkFusionEngine()
+        self.ml_weight = ml_weight
 
         self.last_radar: Optional[RadarTelemetry] = None
         self.last_csi_state: CSIFallState = CSIFallState.NORMAL
+        self.last_ml_prob: float = 0.0
         self.unified_state: UnifiedFallState = UnifiedFallState.NORMAL
 
-    def update_csi(self, features: CSIDynamicFeatures, current_time: Optional[float] = None) -> UnifiedFallState:
+    def update_csi(
+        self,
+        features: CSIDynamicFeatures,
+        current_time: Optional[float] = None,
+        ml_prob: Optional[float] = None,
+    ) -> UnifiedFallState:
         """Process incoming CSI feature from one of the tracker nodes."""
         self.last_csi_state = self.csi_engine.register_feature(features, current_time)
+        if ml_prob is not None:
+            self.last_ml_prob = float(ml_prob)
         return self._evaluate_consensus()
 
     def update_radar(self, telemetry: RadarTelemetry) -> UnifiedFallState:
@@ -54,9 +64,11 @@ class DualFusionEngine:
         prev_state = self.unified_state
 
         if self.mode == OperatingMode.CSI_ONLY:
-            if self.last_csi_state == CSIFallState.CONFIRMED_FALL:
+            if self.last_csi_state == CSIFallState.CONFIRMED_FALL or (
+                self.last_csi_state == CSIFallState.SUSPECTED_FALL and self.last_ml_prob >= 0.85
+            ):
                 self.unified_state = UnifiedFallState.CONFIRMED
-            elif self.last_csi_state == CSIFallState.SUSPECTED_FALL:
+            elif self.last_csi_state == CSIFallState.SUSPECTED_FALL or self.last_ml_prob >= 0.70:
                 self.unified_state = UnifiedFallState.SUSPECTED
             elif self.last_csi_state == CSIFallState.RECOVERED:
                 self.unified_state = UnifiedFallState.RECOVERED
@@ -85,13 +97,16 @@ class DualFusionEngine:
             # Condition 2: CSI observes multi-link velocity burst & post-impact stillness
             csi_confirmed = (self.last_csi_state == CSIFallState.CONFIRMED_FALL)
 
+            # Condition 3: ML classifier predicts high fall probability
+            ml_confirmed = (self.last_ml_prob >= 0.85)
+
             # Consensus Rule:
             # - If BOTH confirm -> Immediate Highest-Confidence Emergency
-            # - If radar confirms floor height + CSI suspected -> Confirmed
+            # - If radar confirms floor height + CSI suspected/ML confirmed -> Confirmed
             # - If CSI confirms and radar not reporting -> Fall suspected or confirmed
-            if radar_confirmed and (csi_confirmed or self.last_csi_state == CSIFallState.SUSPECTED_FALL):
+            if radar_confirmed and (csi_confirmed or self.last_csi_state == CSIFallState.SUSPECTED_FALL or ml_confirmed):
                 self.unified_state = UnifiedFallState.CONFIRMED
-            elif radar_confirmed or csi_confirmed:
+            elif radar_confirmed or csi_confirmed or (ml_confirmed and self.last_csi_state == CSIFallState.SUSPECTED_FALL):
                 self.unified_state = UnifiedFallState.CONFIRMED
             elif self.last_csi_state == CSIFallState.SUSPECTED_FALL:
                 self.unified_state = UnifiedFallState.SUSPECTED
