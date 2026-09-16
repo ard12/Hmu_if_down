@@ -33,6 +33,7 @@ typedef struct {
     float target_distance_m;
     bool presence_detected;
     uint32_t dwell_time_sec;
+    float cluster_area_m2;
 } radar_telemetry_t;
 
 typedef void (*radar_event_callback_t)(const radar_telemetry_t *telemetry);

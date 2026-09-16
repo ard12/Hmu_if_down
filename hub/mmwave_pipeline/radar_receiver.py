@@ -27,6 +27,8 @@ class RadarTelemetry:
     target_height_m: float
     dwell_time_sec: int
     raw_valid: bool = True
+    cluster_area_m2: float = 0.0
+    is_clutter: bool = False
 
 
 class RadarReceiver:
@@ -34,13 +36,23 @@ class RadarReceiver:
 
     HEADER = b"\x53\x59"
 
-    def __init__(self, callback: Optional[Callable[[RadarTelemetry], None]] = None):
+    def __init__(
+        self,
+        callback: Optional[Callable[[RadarTelemetry], None]] = None,
+        min_cluster_area_m2: float = 0.15,
+        enable_cluster_filter: bool = True,
+    ):
         self.callback = callback
+        self.min_cluster_area_m2 = min_cluster_area_m2
+        self.enable_cluster_filter = enable_cluster_filter
         self.current_telemetry = RadarTelemetry(
             fall_state=RadarFallState.NONE,
             posture=RadarPosture.UNKNOWN,
             target_height_m=1.6,
             dwell_time_sec=0,
+            raw_valid=True,
+            cluster_area_m2=0.0,
+            is_clutter=False,
         )
 
     def parse_json_datagram(self, payload: str) -> Optional[RadarTelemetry]:
@@ -62,11 +74,26 @@ class RadarReceiver:
                 3: RadarPosture.LYING,
             }
 
+            cluster_area = float(data.get("cluster_area", data.get("area", 0.0)))
+            fall_raw = fall_map.get(data.get("fall", 0), RadarFallState.NONE)
+            posture_raw = posture_map.get(data.get("posture", 0), RadarPosture.UNKNOWN)
+            height_raw = float(data.get("height", 1.6))
+            dwell_raw = int(data.get("dwell", 0))
+
+            is_clutter = False
+            if self.enable_cluster_filter and 0.0 < cluster_area < self.min_cluster_area_m2:
+                is_clutter = True
+                fall_raw = RadarFallState.NONE
+                posture_raw = RadarPosture.UNKNOWN
+
             telemetry = RadarTelemetry(
-                fall_state=fall_map.get(data.get("fall", 0), RadarFallState.NONE),
-                posture=posture_map.get(data.get("posture", 0), RadarPosture.UNKNOWN),
-                target_height_m=float(data.get("height", 1.6)),
-                dwell_time_sec=int(data.get("dwell", 0)),
+                fall_state=fall_raw,
+                posture=posture_raw,
+                target_height_m=height_raw,
+                dwell_time_sec=dwell_raw,
+                raw_valid=not is_clutter,
+                cluster_area_m2=cluster_area,
+                is_clutter=is_clutter,
             )
             self.current_telemetry = telemetry
             if self.callback:
@@ -104,12 +131,15 @@ class RadarReceiver:
                     self.current_telemetry.fall_state = RadarFallState.CONFIRMED
                 elif val == 3:
                     self.current_telemetry.fall_state = RadarFallState.DWELLING
+                # Re-apply clutter suppression if cluster area was already flagged
+                if self.enable_cluster_filter and self.current_telemetry.is_clutter:
+                    self.current_telemetry.fall_state = RadarFallState.NONE
                 updated = True
             elif cmd == 0x02 and len(payload) >= 2:
                 self.current_telemetry.dwell_time_sec = (payload[0] << 8) | payload[1]
                 updated = True
 
-        # Control Word 0x03: Posture & Height
+        # Control Word 0x03: Posture & Height & Cluster Area
         elif ctrl == 0x03:
             if cmd == 0x01 and len(payload) >= 1:
                 pval = payload[0]
@@ -119,10 +149,23 @@ class RadarReceiver:
                     RadarPosture.LYING if pval == 3 else
                     RadarPosture.UNKNOWN
                 )
+                if self.enable_cluster_filter and self.current_telemetry.is_clutter:
+                    self.current_telemetry.posture = RadarPosture.UNKNOWN
                 updated = True
             elif cmd == 0x02 and len(payload) >= 2:
                 height_cm = (payload[0] << 8) | payload[1]
                 self.current_telemetry.target_height_m = height_cm / 100.0
+                updated = True
+            elif cmd == 0x03 and len(payload) >= 2:
+                area_cm2 = (payload[0] << 8) | payload[1]
+                self.current_telemetry.cluster_area_m2 = area_cm2 / 10000.0
+                if self.enable_cluster_filter and 0.0 < self.current_telemetry.cluster_area_m2 < self.min_cluster_area_m2:
+                    self.current_telemetry.is_clutter = True
+                    self.current_telemetry.fall_state = RadarFallState.NONE
+                    self.current_telemetry.raw_valid = False
+                else:
+                    self.current_telemetry.is_clutter = False
+                    self.current_telemetry.raw_valid = True
                 updated = True
 
         if updated and self.callback:

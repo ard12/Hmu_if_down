@@ -21,6 +21,7 @@
 #include "esp_timer.h"
 #include "nvs_flash.h"
 #include "lwip/sockets.h"
+#include "mdns.h"
 
 static const char *TAG = "CSI_TRACKER";
 
@@ -31,10 +32,9 @@ static const char *TAG = "CSI_TRACKER";
 
 #define WIFI_CHANNEL 6
 #define DEST_PORT 5555
-// Use broadcast so trackers don't need to know the hub's IP.
-// The hub binds on 0.0.0.0:5555 and receives broadcast packets.
-// For production, replace with mDNS resolution (esp_mdns component).
+// Fallback subnet broadcast IP if mDNS discovery is unavailable
 #define DEST_IP "255.255.255.255"
+#define MDNS_HUB_HOST "falldetect-hub"
 
 #define CSI_QUEUE_DEPTH 16
 #define MAX_SUBCARRIERS 128
@@ -159,6 +159,26 @@ static void heartbeat_task(void *arg) {
     }
 }
 
+static void resolve_hub_mdns(void) {
+    esp_err_t err = mdns_init();
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "mDNS init failed (%s), defaulting to broadcast %s", esp_err_to_name(err), DEST_IP);
+        return;
+    }
+
+    ESP_LOGI(TAG, "Resolving hub IP via mDNS query for '%s.local'...", MDNS_HUB_HOST);
+    esp_ip4_addr_t addr;
+    addr.addr = 0;
+
+    err = mdns_query_a(MDNS_HUB_HOST, 2500, &addr);
+    if (err == ESP_OK && addr.addr != 0) {
+        s_dest_addr.sin_addr.s_addr = addr.addr;
+        ESP_LOGI(TAG, "mDNS successfully resolved %s to " IPSTR " (unicast mode)", MDNS_HUB_HOST, IP2STR(&addr));
+    } else {
+        ESP_LOGW(TAG, "mDNS query timed out; falling back to subnet broadcast: %s", DEST_IP);
+    }
+}
+
 static void init_udp_socket(void) {
     s_udp_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
     if (s_udp_sock < 0) {
@@ -174,7 +194,10 @@ static void init_udp_socket(void) {
     s_dest_addr.sin_port = htons(DEST_PORT);
     s_dest_addr.sin_addr.s_addr = inet_addr(DEST_IP);
 
-    ESP_LOGI(TAG, "UDP socket ready, streaming to %s:%d", DEST_IP, DEST_PORT);
+    // Attempt mDNS zero-configuration resolution of hub hostname
+    resolve_hub_mdns();
+
+    ESP_LOGI(TAG, "UDP socket ready, destination port: %d", DEST_PORT);
 }
 
 static void init_wifi_csi(void) {

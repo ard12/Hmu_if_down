@@ -265,14 +265,18 @@ pytest -v tests/
 ```
 
 ### Results Summary
-**40 passed, 7 skipped (legacy CV tests), 0 failed** (100% pass rate):
+**62 passed, 7 skipped (legacy CV tests), 0 failed** (100% pass rate):
 
 | Test Suite | Tests Passed | Covered Functionality |
 |---|:---:|---|
+| [`tests/test_active_veto.py`](file:///d:/Fall_detection/tests/test_active_veto.py) | 4 | Active radar veto suppressing false CSI burst, legacy backward compatibility, floor posture allowance, kinematic slump detection |
+| [`tests/test_adaptive_calibrator.py`](file:///d:/Fall_detection/tests/test_adaptive_calibrator.py) | 4 | 2.4 GHz vs 5.8 GHz carrier scaling ($\lambda$), EMA baseline drift adaptation, motion outlier rejection, bounds clamping |
+| [`tests/test_clutter_filter.py`](file:///d:/Fall_detection/tests/test_clutter_filter.py) | 6 | Multi-link Elevation Perturbation Ratio (EPR), pet ground clutter suppression, radar cluster area ($<0.15\,\text{m}^2$) filtering |
+| [`tests/test_train_pipeline.py`](file:///d:/Fall_detection/tests/test_train_pipeline.py) | 5 | Synthetic feature generation, 5-fold Stratified CV, ROC/PR evaluation, model export & reload, NPZ feature extraction |
+| [`tests/test_dashboard.py`](file:///d:/Fall_detection/tests/test_dashboard.py) | 7 | Index route, status API, incidents query, WebSocket telemetry, `/api/calibrate`, `/api/thresholds`, `/api/datasets` |
 | [`tests/test_csi_pipeline.py`](file:///d:/Fall_detection/tests/test_csi_pipeline.py) | 4 | Binary packet parsing, corrupt packet rejection, PCA SVD, Doppler velocity |
-| [`tests/test_mmwave_parser.py`](file:///d:/Fall_detection/tests/test_mmwave_parser.py) | 4 | Binary frame decoding, checksum validation, JSON parsing, height tracking |
+| [`tests/test_mmwave_parser.py`](file:///d:/Fall_detection/tests/test_mmwave_parser.py) | 4 | Binary frame decoding, checksum validation, JSON parsing, height tracking, dual fusion |
 | [`tests/test_classifier.py`](file:///d:/Fall_detection/tests/test_classifier.py) | 4 | 9D feature extraction, ML probability discrimination, model save/load, hybrid fusion |
-| [`tests/test_dashboard.py`](file:///d:/Fall_detection/tests/test_dashboard.py) | 4 | FastAPI index route, status API, incidents query, WebSocket telemetry broadcast |
 | [`tests/test_recorder.py`](file:///d:/Fall_detection/tests/test_recorder.py) | 2 | Multimodal session buffer synchronization, `.npz` export and metadata schema |
 | [`tests/test_ha_discovery.py`](file:///d:/Fall_detection/tests/test_ha_discovery.py) | 4 | HA MQTT discovery payloads, announce/remove lifecycle, telemetry publishing, YAML syntax |
 | [`tests/test_integration.py`](file:///d:/Fall_detection/tests/test_integration.py) | 9 | CSI mode, Radar mode, Fusion mode, false positive rejection, sequence interpolation, node liveness, cooldown, multi-link recovery |
@@ -293,12 +297,22 @@ pytest -v tests/
 │ [x] Home Assistant MQTT Auto-Discovery (13 entities + YAML automations)         │
 │ [x] Docker Edge Deployment (Host networking + Mosquitto broker)                 │
 ├─────────────────────────────────────────────────────────────────────────────────┤
-│ Phase 5 (Next Stage — Field Pilot & Model Hardening)                            │
-│ [ ] Active Radar Veto Policy implementation in DualFusionEngine                 │
-│ [ ] Empirical dataset collection protocol using recorder.py across 5 test rooms │
-│ [ ] Dynamic carrier-frequency awareness in PCA extractor (2.4 GHz vs 5.0 GHz)  │
-│ [ ] Continuous adaptive noise floor baseline calibration in background thread   │
-│ [ ] Slow Slump / Sliding fall detector based on cumulative elevation rate      │
+│ Phase 5 (Completed — Consensus Hardening, Adaptive Calibration & Fleet Training)│
+│ [x] Active Radar Veto Policy in DualFusionEngine (suppress dropped item bursts) │
+│ [x] Kinematic Slump / Sliding Fall Tracker (elevation derivative dZ/dt)        │
+│ [x] Carrier-Aware Doppler Scaling (lambda = 0.123m for 2.4GHz, 0.0545m for 5GHz)│
+│ [x] Continuous Background Adaptive Calibrator (EMA baseline tracking, alpha=0.02)│
+│ [x] Spatial Link Elevation Perturbation Ratio (EPR < 0.15 ground pet filter)   │
+│ [x] mmWave Radar Cluster Area Filter (< 0.15 m^2 pet / roomba disambiguation)  │
+│ [x] Empirical Dataset Training Pipeline (hub/train.py with 5-Fold Stratified CV)│
+│ [x] Clinical Human Trial Data Collection Protocol (docs/DATA_COLLECTION_PROTOCOL)│
+│ [x] Web HUD Fleet REST Endpoints (/api/calibrate, /api/thresholds, /api/datasets)│
+│ [x] ESP-IDF Firmware mDNS Discovery (falldetect-hub.local zero-config unicast)  │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ Phase 6 (Future — Clinical Multi-Room Deployment & Edge NPU Acceleration)      │
+│ [ ] Multi-room handover & spatial mesh roaming across multiple ESP32 AP clusters│
+│ [ ] Edge TPU / NPU quantization (TensorFlow Lite / ONNX Runtime for ARM)        │
+│ [ ] FDA 510(k) Class II Medical Device clinical audit logging and export        │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -312,3 +326,4 @@ pytest -v tests/
 | **1.1.0** | 2026-09-13 | `88d37b6` | Antigravity | Phase 3 Validation Audit: ISR callback decoupling in tracker firmware, live listener threads in hub, SOS filter length guards, SVD sanitization. |
 | **1.2.0** | 2026-09-14 | `6c567f6` | Antigravity | Added room noise calibration (`calibrate.py`), MQTT/webhook alerting, broadcast discovery, and integration test suite. |
 | **2.0.0** | 2026-09-14 | `cd5951c` | Antigravity | **Phase 4 Milestone Completion**: Real-Time Web Telemetry HUD, Dataset Recorder & Replay, Probabilistic ML Classifier, Home Assistant MQTT Auto-Discovery, Docker edge containerization. Full test suite: 40 passed. |
+| **2.5.0** | 2026-09-16 | Current | Antigravity | **Phase 5 Milestone Completion**: Consensus Hardening (Active Radar Veto & Kinematic Slump Detection), Carrier-Aware Scaling (2.4 vs 5.8 GHz), Background Adaptive Calibrator (EMA baseline tracking), Spatial Elevation Perturbation Ratio (EPR) & Radar Cluster Area Filter, Empirical Training Pipeline (`hub/train.py`) with 5-Fold CV, Clinical Human Trial Protocol (`docs/DATA_COLLECTION_PROTOCOL.md`), Web HUD Fleet REST Endpoints, and ESP-IDF Firmware mDNS Discovery. Total: 62 passed tests. |

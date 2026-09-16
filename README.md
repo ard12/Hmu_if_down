@@ -11,11 +11,14 @@
 An intelligent, non-invasive, privacy-preserving fall detection platform engineered for elderly monitoring and healthcare facilities. Operates completely **device-free** (no wearables, pendants, or intrusive cameras) by combining two complementary wireless sensing paradigms:
 
 1. **Plan 1 (Primary)**: **4-Node Wi-Fi CSI Active Sensing Mesh** (1 AP / Transmitter + 3 Receivers / Trackers using ESP-NOW @ 100 Hz).
-2. **Plan 2 (High-Reliability)**: **ESP32 + 60 GHz mmWave FMCW Radar** (Direct 3D centroid altitude tracking and posture classification).
-3. **Dual-Sensor Fusion Engine**: Cross-verifies wide-area RF multipath disturbances with centimeter-accurate floor height detection and a probabilistic gradient-boosted ML classifier to achieve near-zero false alarms.
-4. **Real-Time Web Telemetry HUD**: Zero-npm, canvas-rendered dashboard streaming live Doppler waterfall spectra, altitude gauges, and incident logs via WebSockets.
-5. **Smart Home & Edge Ready**: Native Home Assistant MQTT Auto-Discovery and Docker Compose deployment with host networking.
-6. **Detailed Audit & Technical Findings**: Consult [**`SYSTEM_AUDIT_AND_FINDINGS.md`**](SYSTEM_AUDIT_AND_FINDINGS.md) for the comprehensive living engineering log, physics calculations, FMEA edge cases, and architectural benchmarks.
+2. **Plan 2 (High-Reliability)**: **ESP32 + 60 GHz mmWave FMCW Radar** (Direct 3D centroid altitude tracking, cluster area filtering, and posture classification).
+3. **Dual-Sensor Fusion Engine**: Cross-verifies wide-area RF multipath disturbances with centimeter-accurate floor height detection, Active Radar Veto (to suppress dropped item bursts), and Kinematic Slump Detection for geriatric sliding falls.
+4. **Pet & Ground Clutter Disambiguation**: Multi-link Elevation Perturbation Ratio (EPR) and radar cluster area filtering ($<0.15\,\text{m}^2$) to reject dogs, cats, and robot vacuums.
+5. **Continuous Adaptive Calibration & 5 GHz Carrier Scaling**: Real-time EMA background variance tracking and carrier wavelength scaling ($\lambda = 0.123\,\text{m}$ for 2.4 GHz vs $0.0545\,\text{m}$ for 5.8 GHz).
+6. **Empirical ML Training Pipeline**: End-to-end training and 5-fold cross-validation suite (`hub/train.py`) and clinical trial protocol (`docs/DATA_COLLECTION_PROTOCOL.md`).
+7. **Real-Time Web Telemetry HUD & REST Fleet API**: Zero-npm, canvas-rendered dashboard with live WebSocket spectra, altitude gauges, and REST management endpoints (`/api/calibrate`, `/api/thresholds`, `/api/datasets`).
+8. **Smart Home & Zero-Config Edge Ready**: Native Home Assistant MQTT Auto-Discovery, ESP-IDF mDNS unicast discovery (`falldetect-hub.local`), and Docker Compose deployment.
+9. **Detailed Audit & Technical Findings**: Consult [**`SYSTEM_AUDIT_AND_FINDINGS.md`**](SYSTEM_AUDIT_AND_FINDINGS.md) for the comprehensive living engineering log, physics calculations, FMEA edge cases, and architectural benchmarks.
 
 
 ---
@@ -260,11 +263,15 @@ Run the comprehensive test suite covering signal processing, ML classification, 
 pytest -v tests/
 ```
 
-Test coverage:
+Test coverage (62 passing tests):
+- `test_active_veto.py`: Active radar veto, standing posture false alarm suppression, and kinematic slump detection.
+- `test_adaptive_calibrator.py`: Carrier-aware Doppler scaling (2.4 GHz vs 5.8 GHz) and continuous EMA noise tracking.
+- `test_clutter_filter.py`: Spatial Elevation Perturbation Ratio (EPR) and radar cluster area ($<0.15\,\text{m}^2$) pet filters.
+- `test_train_pipeline.py`: Empirical dataset training, Stratified 5-Fold Cross-Validation, and ROC/PR metric evaluations.
+- `test_dashboard.py`: FastAPI routes, WebSockets, and REST management endpoints (`/api/calibrate`, `/api/thresholds`, `/api/datasets`).
 - `test_csi_pipeline.py`: Raw CSI packet decoding (`CSIF`), Butterworth filtering, PCA, and Doppler velocity.
-- `test_mmwave_parser.py`: 60 GHz mmWave radar binary frame parser (`0x53 0x59`) with checksum validation.
+- `test_mmwave_parser.py`: 60 GHz mmWave radar binary frame parser (`0x53 0x59`) with checksum validation and cluster parsing.
 - `test_classifier.py`: 9D kinematic feature extraction, ML probability discrimination, and hybrid fusion escalation.
-- `test_dashboard.py`: FastAPI routes, status API, and WebSocket streaming.
 - `test_recorder.py`: Multimodal session buffer synchronization and `.npz` dataset replay.
 - `test_ha_discovery.py`: Home Assistant MQTT discovery schemas, retained announcements, and automation YAML validation.
 - `test_integration.py`: Multi-link consensus, false positive rejection, sequence gap interpolation, and node health monitoring.
@@ -286,35 +293,42 @@ Fall_Detection/
 │   ├── Dockerfile                # Multi-arch edge deployment container
 │   ├── docker-compose.yml        # Hub + Mosquitto broker compose stack
 │   └── mosquitto.conf            # Local MQTT broker configuration
+├── docs/
+│   └── DATA_COLLECTION_PROTOCOL.md # Clinical human trial data capture protocol
 ├── firmware/
 │   ├── wifi_csi/
 │   │   ├── transmitter_ap/       # Node 0 (AP): 100 Hz ESP-NOW active injector
 │   │   │   ├── CMakeLists.txt
 │   │   │   └── main/             # ESP-IDF component directory
-│   │   └── tracker_node/         # Nodes 1, 2, 3: CSI receiver & UDP streamer
+│   │   └── tracker_node/         # Nodes 1, 2, 3: CSI receiver & UDP streamer (mDNS enabled)
 │   │       ├── CMakeLists.txt
 │   │       └── main/
-│   └── mmwave_radar/             # Plan 2: ESP32 + 60GHz mmWave radar gateway
+│   └── mmwave_radar/             # Plan 2: ESP32 + 60GHz mmWave radar gateway (mDNS enabled)
 │       ├── CMakeLists.txt
 │       └── main/
 ├── hub/
 │   ├── csi_pipeline/
 │   │   ├── preprocessor.py       # Denoising, phase unwrapping & Butterworth filter
-│   │   ├── pca_features.py       # PCA dimensionality & Doppler velocity STFT
-│   │   ├── multi_link_fusion.py  # 3-Link coincidence voting & stillness state machine
+│   │   ├── pca_features.py       # PCA dimensionality & carrier-aware Doppler velocity STFT
+│   │   ├── multi_link_fusion.py  # 3-Link coincidence voting, EPR pet filter, & state machine
 │   │   └── classifier.py         # 9D kinematic feature extractor & ML classifier
 │   ├── dashboard/
-│   │   ├── app.py                # FastAPI + WebSockets telemetry broadcaster
+│   │   ├── app.py                # FastAPI + WebSockets broadcaster & REST fleet endpoints
 │   │   └── static/               # Zero-npm canvas HUD (Doppler waterfall, Z-axis)
 │   ├── mmwave_pipeline/
-│   │   └── radar_receiver.py     # Binary & JSON protocol decoder & height tracker
+│   │   └── radar_receiver.py     # Binary & JSON protocol decoder & cluster area filter
+│   ├── adaptive_calibrator.py    # Background EMA noise floor calibrator
 │   ├── alert_dispatcher.py       # Sirens, CSV logger, MQTT & HTTP Webhooks
 │   ├── calibrate.py              # Room noise floor calibration & threshold generator
-│   ├── fusion_engine.py          # Dual-modality consensus & hybrid ML engine
+│   ├── fusion_engine.py          # Dual-modality consensus, Active Radar Veto & Slump Tracker
 │   ├── ha_discovery.py           # Home Assistant MQTT Auto-Discovery generator
 │   ├── recorder.py               # Multimodal dataset recorder (.npz + JSON)
-│   └── server.py                 # Multi-threaded hub server, replay, & demo simulator
-├── tests/                        # Full unit and integration test suite (40+ tests)
+│   ├── server.py                 # Multi-threaded hub server, replay, & demo simulator
+│   └── train.py                  # Empirical ML training, cross-validation & ROC evaluator
+├── models/
+│   ├── fall_classifier.pkl       # Calibrated production classifier model
+│   └── evaluation_report.json    # 5-fold cross-validation metrics report
+├── tests/                        # Full unit and integration test suite (62+ passing tests)
 ├── .gitignore
 ├── LICENSE                       # MIT License
 ├── README.md                     # Documentation

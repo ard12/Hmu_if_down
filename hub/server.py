@@ -693,6 +693,10 @@ def main():
             print(f"  [HA]    Announced {count} Home Assistant MQTT discovery entities")
 
     if args.web:
+        from hub.dashboard.app import broadcaster as web_broadcaster
+        web_broadcaster.csi_engine = fusion_engine.csi_engine
+        web_broadcaster.fusion_engine = fusion_engine
+
         def _run_web(port: int):
             import uvicorn
             from hub.dashboard.app import app as web_app

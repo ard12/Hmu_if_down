@@ -61,3 +61,40 @@ def test_dashboard_websocket_telemetry(client):
         resp_raw = websocket.receive_text()
         resp_data = json.loads(resp_raw)
         assert resp_data["type"] == "pong"
+
+
+def test_dashboard_calibrate_api(client):
+    """POST /api/calibrate should trigger baseline reset and return status."""
+    response = client.post("/api/calibrate")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+    assert "motionless_variance_threshold" in data
+
+
+def test_dashboard_thresholds_api(client):
+    """GET and POST /api/thresholds should read and update active thresholds."""
+    # Read initial
+    get_res = client.get("/api/thresholds")
+    assert get_res.status_code == 200
+    assert "thresholds" in get_res.json()
+
+    # Update
+    post_res = client.post("/api/thresholds", json={
+        "motionless_variance_threshold": 0.095,
+        "enable_radar_veto": True,
+    })
+    assert post_res.status_code == 200
+    updated = post_res.json()["thresholds"]
+    assert updated["motionless_variance_threshold"] == 0.095
+    assert updated["enable_radar_veto"] is True
+
+
+def test_dashboard_datasets_api(client):
+    """GET /api/datasets should return recorded session archives list."""
+    response = client.get("/api/datasets")
+    assert response.status_code == 200
+    data = response.json()
+    assert "datasets" in data
+    assert "total_count" in data
+    assert isinstance(data["datasets"], list)

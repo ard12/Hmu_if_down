@@ -15,6 +15,7 @@
 #include "nvs_flash.h"
 #include "esp_wifi.h"
 #include "lwip/sockets.h"
+#include "mdns.h"
 #include "mmwave_parser.h"
 
 static const char *TAG = "MMWAVE_GATEWAY";
@@ -25,20 +26,41 @@ static const char *TAG = "MMWAVE_GATEWAY";
 #define RX_BUF_SIZE 1024
 
 #define DEST_PORT 5556
-#define DEST_IP "255.255.255.255"  // Broadcast; hub binds on 0.0.0.0:5556
+#define DEST_IP "255.255.255.255"  // Broadcast fallback; hub binds on 0.0.0.0:5556
+#define MDNS_HUB_HOST "falldetect-hub"
 
 static int s_udp_sock = -1;
 static struct sockaddr_in s_dest_addr;
 
+static void resolve_hub_mdns(void) {
+    esp_err_t err = mdns_init();
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "mDNS init failed (%s), defaulting to broadcast %s", esp_err_to_name(err), DEST_IP);
+        return;
+    }
+
+    ESP_LOGI(TAG, "Resolving hub IP via mDNS for '%s.local'...", MDNS_HUB_HOST);
+    esp_ip4_addr_t addr;
+    addr.addr = 0;
+
+    err = mdns_query_a(MDNS_HUB_HOST, 2500, &addr);
+    if (err == ESP_OK && addr.addr != 0) {
+        s_dest_addr.sin_addr.s_addr = addr.addr;
+        ESP_LOGI(TAG, "mDNS successfully resolved %s to " IPSTR " (unicast mode)", MDNS_HUB_HOST, IP2STR(&addr));
+    } else {
+        ESP_LOGW(TAG, "mDNS query timed out; using broadcast: %s", DEST_IP);
+    }
+}
+
 static void on_radar_event(const radar_telemetry_t *t) {
-    ESP_LOGI(TAG, "[Radar Event] FallState=%d, Posture=%d, Height=%.2fm, Presence=%d, Dwell=%lds",
-             t->fall_state, t->posture, t->target_height_m, t->presence_detected, t->dwell_time_sec);
+    ESP_LOGI(TAG, "[Radar Event] FallState=%d, Posture=%d, Height=%.2fm, Presence=%d, Dwell=%lds, Area=%.2fm2",
+             t->fall_state, t->posture, t->target_height_m, t->presence_detected, t->dwell_time_sec, t->cluster_area_m2);
 
     if (s_udp_sock >= 0) {
-        char msg[128];
+        char msg[160];
         int len = snprintf(msg, sizeof(msg),
-                           "{\"fall\":%d,\"posture\":%d,\"height\":%.2f,\"dwell\":%ld}\n",
-                           t->fall_state, t->posture, t->target_height_m, t->dwell_time_sec);
+                           "{\"fall\":%d,\"posture\":%d,\"height\":%.2f,\"dwell\":%ld,\"cluster_area\":%.2f}\n",
+                           t->fall_state, t->posture, t->target_height_m, t->dwell_time_sec, t->cluster_area_m2);
         sendto(s_udp_sock, msg, len, 0, (struct sockaddr *)&s_dest_addr, sizeof(s_dest_addr));
     }
 }
@@ -83,7 +105,10 @@ static void init_udp_socket(void) {
     s_dest_addr.sin_port = htons(DEST_PORT);
     s_dest_addr.sin_addr.s_addr = inet_addr(DEST_IP);
 
-    ESP_LOGI(TAG, "UDP socket ready, streaming radar events to %s:%d", DEST_IP, DEST_PORT);
+    // Attempt mDNS zero-configuration resolution of hub hostname
+    resolve_hub_mdns();
+
+    ESP_LOGI(TAG, "UDP socket ready, streaming radar events to port %d", DEST_PORT);
 }
 
 static void init_wifi(void) {

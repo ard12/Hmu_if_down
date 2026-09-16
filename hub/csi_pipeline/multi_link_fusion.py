@@ -33,11 +33,15 @@ class MultiLinkFusionEngine:
         min_coincident_links: int = 2,
         post_fall_quiescence_sec: float = 4.0,
         motionless_variance_threshold: float = 0.08,
+        enable_pet_filter: bool = True,
+        epr_threshold: float = 0.15,
     ):
         self.coincidence_window = coincidence_window_sec
         self.min_links = min_coincident_links
         self.quiescence_duration = post_fall_quiescence_sec
         self.motionless_var_thresh = motionless_variance_threshold
+        self.enable_pet_filter = enable_pet_filter
+        self.epr_threshold = epr_threshold
 
         # Recent velocity burst events per node
         self.recent_bursts: Dict[int, Deque[LinkEvent]] = {
@@ -46,10 +50,37 @@ class MultiLinkFusionEngine:
             3: deque(maxlen=10),
         }
 
+        # Latest moving variance per node for spatial elevation ratio
+        self.latest_variances: Dict[int, float] = {1: 0.0, 2: 0.0, 3: 0.0}
+
         # State machine
         self.state = CSIFallState.NORMAL
         self.suspected_timestamp: Optional[float] = None
         self.coincident_nodes: List[int] = []
+        self.clutter_suppressed_count: int = 0
+
+    def compute_elevation_perturbation_ratio(self, link_variances: Optional[Dict[int, float]] = None) -> float:
+        """Compute the Elevation Perturbation Ratio (EPR):
+        EPR = (Var(Link1) + Var(Link2)) / (2 * max(Var(Link3), 1e-6))
+
+        Link 3 is floor-mounted (0.3m) and Links 1 & 2 are elevated (1.2m, 2.4m).
+        Low values (< 0.15) indicate perturbations isolated strictly to the floor plane
+        (e.g., small pets, robotic vacuums, moving toys).
+        """
+        vars_dict = link_variances if link_variances is not None else self.latest_variances
+        var1 = vars_dict.get(1, 0.0)
+        var2 = vars_dict.get(2, 0.0)
+        var3 = vars_dict.get(3, 0.0)
+        return (var1 + var2) / (2.0 * max(var3, 1e-6))
+
+    def is_ground_clutter(self, link_variances: Optional[Dict[int, float]] = None) -> bool:
+        """Check if perturbation is isolated to the floor link (pet or robotic vacuum)."""
+        vars_dict = link_variances if link_variances is not None else self.latest_variances
+        var3 = vars_dict.get(3, 0.0)
+        if var3 <= self.motionless_var_thresh * 1.5:
+            return False
+        epr = self.compute_elevation_perturbation_ratio(vars_dict)
+        return epr < self.epr_threshold
 
     def register_feature(self, features: CSIDynamicFeatures, current_time: Optional[float] = None) -> CSIFallState:
         """Evaluate incoming feature from one of the tracker nodes and update state."""
@@ -58,6 +89,15 @@ class MultiLinkFusionEngine:
 
         if node_id not in self.recent_bursts:
             self.recent_bursts[node_id] = deque(maxlen=10)
+
+        # Update latest moving variance for node
+        self.latest_variances[node_id] = features.moving_variance
+
+        # If pet/ground clutter filter is enabled and perturbation is isolated to floor,
+        # suppress velocity burst registration to prevent false alarms
+        if self.enable_pet_filter and self.is_ground_clutter():
+            self.clutter_suppressed_count += 1
+            return self.state
 
         # Record velocity burst if detected
         if features.is_velocity_burst:
@@ -114,5 +154,8 @@ class MultiLinkFusionEngine:
         self.state = CSIFallState.NORMAL
         self.suspected_timestamp = None
         self.coincident_nodes.clear()
+        self.clutter_suppressed_count = 0
         for q in self.recent_bursts.values():
             q.clear()
+        for k in self.latest_variances:
+            self.latest_variances[k] = 0.0

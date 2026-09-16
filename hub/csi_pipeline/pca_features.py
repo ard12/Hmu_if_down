@@ -32,6 +32,18 @@ class CSIPCAExtractor:
         self.vel_threshold = velocity_threshold_mps
         self.energy_threshold = energy_surge_threshold
 
+    def set_carrier_frequency(self, freq_or_channel: float):
+        """Configure carrier wavelength dynamically for 2.4 GHz vs 5.8 GHz Wi-Fi channels."""
+        if freq_or_channel <= 14:
+            # 2.4 GHz Wi-Fi Channel (1 - 14): Center freq ~2.437 GHz (Ch 6)
+            self.wavelength = self.c / 2.437e9  # ~0.123 m
+        elif freq_or_channel <= 196:
+            # 5 GHz Wi-Fi Channel (36 - 165): Mid-band freq ~5.5 GHz
+            self.wavelength = self.c / 5.500e9  # ~0.0545 m
+        else:
+            # Direct frequency in Hz
+            self.wavelength = self.c / float(freq_or_channel)
+
     def compute_pca(self, data: np.ndarray, n_components: int = 2) -> np.ndarray:
         """Perform PCA over subcarrier columns to extract dominant spatial motion vectors.
         

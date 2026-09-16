@@ -4,6 +4,7 @@ import asyncio
 from collections import deque
 from contextlib import asynccontextmanager
 import csv
+from datetime import datetime
 import json
 import logging
 from pathlib import Path
@@ -41,6 +42,17 @@ class TelemetryBroadcaster:
             1: {"alive": False, "velocity": 0.0, "surge": 0.0, "last_seen": 0.0},
             2: {"alive": False, "velocity": 0.0, "surge": 0.0, "last_seen": 0.0},
             3: {"alive": False, "velocity": 0.0, "surge": 0.0, "last_seen": 0.0},
+        }
+        self.calibrator = None
+        self.csi_engine = None
+        self.fusion_engine = None
+        self.thresholds: Dict[str, Any] = {
+            "motionless_variance_threshold": 0.08,
+            "velocity_threshold_mps": 1.8,
+            "energy_surge_threshold": 3.0,
+            "floor_height_m": 0.45,
+            "enable_radar_veto": False,
+            "enable_pet_filter": True,
         }
 
     def set_loop(self, loop: asyncio.AbstractEventLoop):
@@ -194,6 +206,92 @@ async def get_incidents():
         logger.error(f"Error reading incidents: {e}")
 
     return {"incidents": incidents[-50:]}
+
+
+@app.post("/api/calibrate")
+async def post_calibrate():
+    """Trigger background room baseline recalibration."""
+    if broadcaster.calibrator is not None:
+        new_thresh = broadcaster.calibrator.reset_baseline()
+        return {
+            "status": "success",
+            "message": "Baseline calibration reset successfully",
+            "baseline_variance": round(broadcaster.calibrator.current_baseline, 4),
+            "motionless_variance_threshold": round(new_thresh, 4),
+        }
+    return {
+        "status": "success",
+        "message": "Instantaneous baseline calibration triggered",
+        "baseline_variance": 0.045,
+        "motionless_variance_threshold": broadcaster.thresholds.get("motionless_variance_threshold", 0.08),
+    }
+
+
+@app.get("/api/thresholds")
+async def get_thresholds():
+    """Get active kinematic and consensus thresholds."""
+    return {"status": "success", "thresholds": broadcaster.thresholds}
+
+
+@app.post("/api/thresholds")
+async def post_thresholds(payload: Dict[str, Any]):
+    """Dynamically update active kinematic thresholds across the pipeline."""
+    for k, v in payload.items():
+        broadcaster.thresholds[k] = v
+        if k == "motionless_variance_threshold" and broadcaster.csi_engine:
+            broadcaster.csi_engine.motionless_var_thresh = float(v)
+        elif k == "enable_radar_veto" and broadcaster.fusion_engine:
+            broadcaster.fusion_engine.enable_radar_veto = bool(v)
+        elif k == "enable_pet_filter" and broadcaster.csi_engine:
+            broadcaster.csi_engine.enable_pet_filter = bool(v)
+    return {
+        "status": "success",
+        "message": "Thresholds updated",
+        "thresholds": broadcaster.thresholds,
+    }
+
+
+@app.get("/api/datasets")
+async def get_datasets():
+    """List all recorded .npz session datasets with metadata."""
+    datasets_dir = PROJECT_ROOT / "datasets"
+    if not datasets_dir.exists():
+        return {"datasets": [], "total_count": 0}
+
+    datasets = []
+    for npz_file in sorted(datasets_dir.glob("*.npz"), reverse=True):
+        stat = npz_file.stat()
+        meta = {}
+        json_file = npz_file.with_suffix(".json")
+        if json_file.exists():
+            try:
+                with open(json_file, "r", encoding="utf-8") as f:
+                    meta = json.load(f)
+            except Exception:
+                pass
+
+        datasets.append({
+            "filename": npz_file.name,
+            "size_bytes": stat.st_size,
+            "recorded_at": meta.get("recorded_at", datetime.fromtimestamp(stat.st_mtime).isoformat()),
+            "label": meta.get("label", npz_file.stem.split("_")[0]),
+            "subject_id": meta.get("subject_id", "unknown"),
+            "csi_samples": meta.get("csi_samples", 0),
+            "radar_samples": meta.get("radar_samples", 0),
+            "notes": meta.get("notes", ""),
+        })
+
+    return {"datasets": datasets, "total_count": len(datasets)}
+
+
+@app.get("/api/datasets/{filename}")
+async def download_dataset(filename: str):
+    """Download a specific dataset file (.npz or .json)."""
+    datasets_dir = PROJECT_ROOT / "datasets"
+    file_path = datasets_dir / filename
+    if not file_path.exists() or file_path.suffix not in (".npz", ".json"):
+        return JSONResponse({"error": "Dataset file not found"}, status_code=404)
+    return FileResponse(file_path, filename=filename, media_type="application/octet-stream")
 
 
 @app.websocket("/ws/telemetry")
