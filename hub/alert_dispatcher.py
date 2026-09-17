@@ -101,6 +101,8 @@ class AlertDispatcher:
         with self._lock:
             now = time.time()
             if now - self.last_alert_time < self.cooldown_sec:
+                # Suppressed by cooldown — log a FALL_CANCELLED audit event
+                self._append_audit("FALL_CANCELLED", modality, event_name, details)
                 return
 
             self.last_alert_time = now
@@ -129,6 +131,9 @@ class AlertDispatcher:
             }
             payload_json = json.dumps(payload)
 
+            # Audit log (FALL_CONFIRMED)
+            self._append_audit("FALL_CONFIRMED", modality, event_name, details)
+
             # MQTT notification
             if self._mqtt_client is not None:
                 try:
@@ -156,3 +161,19 @@ class AlertDispatcher:
                 broadcaster.trigger_alert(modality, event_name, details)
             except Exception:
                 pass
+
+    def _append_audit(self, event_type: str, modality: str, event_name: str, details: str) -> None:
+        """Write an event to the AuditLog if one is wired up via the broadcaster."""
+        try:
+            from hub.dashboard.app import broadcaster
+            if broadcaster.audit_log is not None:
+                broadcaster.audit_log.append(
+                    event_type,
+                    payload={
+                        "modality": modality,
+                        "event": event_name,
+                        "details": details,
+                    },
+                )
+        except Exception:
+            pass

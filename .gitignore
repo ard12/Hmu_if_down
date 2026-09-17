@@ -50,7 +50,20 @@ output/
 recordings/
 datasets/*.npz
 datasets/*.json
+datasets/trials/*.npz
+datasets/trials/*.json
 !datasets/.gitkeep
+
+# Audit database and FHIR exports (sensitive clinical data)
+audits/audit.db
+audits/fhir_export_*.json
+
+# API Secrets — NEVER commit the actual token file
+config/api_tokens.yaml
+
+# Compiled firmware binaries (built from source)
+deploy/firmware/*.bin
+deploy/firmware/*.elf
 
 # Pytest / Coverage
 .pytest_cache/

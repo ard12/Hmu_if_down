@@ -1,0 +1,20 @@
+# Fall Detection Hub — API Token Configuration Template
+#
+# Copy this file to config/api_tokens.yaml and replace the placeholder tokens
+# with cryptographically random values (e.g., openssl rand -hex 32).
+#
+# NOTE: config/api_tokens.yaml is in .gitignore and must NEVER be committed.
+#
+# Roles:
+#   admin  — full access: audit log, FHIR export, chain verification, thresholds
+#   viewer — read-only: telemetry, status, incidents (audit endpoints blocked)
+
+tokens:
+  # Replace with your actual secret tokens:
+  "REPLACE_WITH_ADMIN_TOKEN_32_HEX_CHARS":
+    role: admin
+    description: "Facility admin token"
+
+  "REPLACE_WITH_VIEWER_TOKEN_32_HEX_CHARS":
+    role: viewer
+    description: "Read-only monitoring dashboard token"

@@ -48,14 +48,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output-model",
         type=Path,
-        default=PROJECT_ROOT / "models" / "fall_classifier.pkl",
-        help="Path to save trained classifier model (default: models/fall_classifier.pkl)",
+        default=None,
+        help="Path to save trained classifier model (overrides --output-dir)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=PROJECT_ROOT / "models",
+        help="Directory for model and report outputs (default: models/)",
     )
     parser.add_argument(
         "--report-file",
         type=Path,
-        default=PROJECT_ROOT / "models" / "evaluation_report.json",
-        help="Path to save cross-validation metrics JSON (default: models/evaluation_report.json)",
+        default=None,
+        help="Path to save cross-validation metrics JSON (overrides --output-dir)",
     )
     parser.add_argument(
         "--n-splits",
@@ -73,6 +79,17 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=600,
         help="Number of synthetic feature samples to generate (default: 600)",
+    )
+    parser.add_argument(
+        "--onnx",
+        action="store_true",
+        help="Export ONNX FP32 and INT8-quantized models after training (requires skl2onnx + onnxruntime)",
+    )
+    parser.add_argument(
+        "--mix-ratio",
+        type=float,
+        default=0.7,
+        help="Fraction of real-data samples when blending real + synthetic (default: 0.7)",
     )
     return parser.parse_args()
 
@@ -324,8 +341,84 @@ def train_and_export(
     return cv_report
 
 
+def convert_and_quantize(model, output_dir: Path) -> Dict[str, Any]:
+    """Export the trained sklearn model to ONNX FP32 and INT8-quantized formats.
+
+    Requires: skl2onnx>=1.16 and onnxruntime>=1.18
+
+    Args:
+        model: Fitted scikit-learn estimator.
+        output_dir: Directory where .onnx files will be saved.
+
+    Returns:
+        Dict with onnx_path, int8_path, onnx_size_kb, int8_size_kb, and
+        benchmark latency metrics (mean_ms, p99_ms) for both variants.
+    """
+    result: Dict[str, Any] = {}
+    try:
+        from skl2onnx import convert_sklearn
+        from skl2onnx.common.data_types import FloatTensorType
+    except ImportError:
+        print("[WARN] skl2onnx not installed — ONNX export skipped.")
+        print("       Install with: pip install skl2onnx>=1.16 onnxruntime>=1.18")
+        return result
+
+    try:
+        import onnx  # noqa: F401
+        from onnxruntime.quantization import quantize_dynamic, QuantType
+    except ImportError:
+        print("[WARN] onnxruntime not installed — ONNX export skipped.")
+        return result
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    onnx_path = output_dir / "fall_classifier.onnx"
+    int8_path = output_dir / "fall_classifier_int8.onnx"
+
+    # FP32 conversion
+    initial_type = [("float_input", FloatTensorType([None, 9]))]
+    onnx_model = convert_sklearn(model, initial_types=initial_type)
+    with open(onnx_path, "wb") as f:
+        f.write(onnx_model.SerializeToString())
+    print(f"[OK] FP32 ONNX model exported to: {onnx_path}")
+
+    # INT8 quantization
+    quantize_dynamic(str(onnx_path), str(int8_path), weight_type=QuantType.QUInt8)
+    print(f"[OK] INT8 quantized ONNX exported to: {int8_path}")
+
+    result["onnx_path"] = str(onnx_path)
+    result["int8_path"] = str(int8_path)
+    result["onnx_size_kb"] = round(onnx_path.stat().st_size / 1024, 1)
+    result["int8_size_kb"] = round(int8_path.stat().st_size / 1024, 1)
+
+    # Benchmark both variants using the ONNX runner
+    try:
+        import sys
+        if str(PROJECT_ROOT) not in sys.path:
+            sys.path.insert(0, str(PROJECT_ROOT))
+        from hub.onnx_runner import ONNXFallClassifier
+
+        for variant_name, model_path in [("onnx_fp32", onnx_path), ("onnx_int8", int8_path)]:
+            runner = ONNXFallClassifier(model_path=model_path)
+            bench = runner.benchmark_inference(n=500)
+            result[f"{variant_name}_mean_ms"] = bench["mean_ms"]
+            result[f"{variant_name}_p99_ms"] = bench["p99_ms"]
+            print(
+                f"[OK] {variant_name} benchmark: mean={bench['mean_ms']:.3f}ms "
+                f"p99={bench['p99_ms']:.3f}ms"
+            )
+    except Exception as exc:
+        print(f"[WARN] ONNX benchmark failed: {exc}")
+
+    return result
+
+
 def main():
     args = parse_args()
+
+    # Resolve output paths (explicit --output-model / --report-file override --output-dir)
+    output_dir: Path = args.output_dir
+    output_model = args.output_model or (output_dir / "fall_classifier.pkl")
+    report_file = args.report_file or (output_dir / "evaluation_report.json")
 
     X, y = np.empty((0, 9)), np.empty((0,), dtype=np.int32)
     if not args.synthetic and args.data_dir.exists():
@@ -338,19 +431,45 @@ def main():
         print(f"Generating {args.n_synthetic} synthetic feature distributions...")
         X_syn, y_syn = generate_synthetic_features(n_samples=args.n_synthetic)
         if len(y) > 0:
-            X = np.vstack([X, X_syn])
-            y = np.concatenate([y, y_syn])
+            # Mix real + synthetic at the specified ratio
+            n_real = len(y)
+            n_syn_target = max(1, int(n_real / args.mix_ratio * (1.0 - args.mix_ratio)))
+            n_syn_actual = min(len(y_syn), n_syn_target)
+            rng = np.random.default_rng(seed=42)
+            idx = rng.choice(len(y_syn), size=n_syn_actual, replace=False)
+            X = np.vstack([X, X_syn[idx]])
+            y = np.concatenate([y, y_syn[idx]])
+            print(
+                f"Mixed corpus: {n_real} real + {n_syn_actual} synthetic "
+                f"(mix-ratio={args.mix_ratio})"
+            )
         else:
             X, y = X_syn, y_syn
 
     print(f"Total training corpus: {len(y)} instances ({np.sum(y == 1)} falls, {np.sum(y == 0)} ADLs)")
-    train_and_export(
+    cv_report = train_and_export(
         X,
         y,
-        output_model_path=args.output_model,
-        report_file_path=args.report_file,
+        output_model_path=output_model,
+        report_file_path=report_file,
         n_splits=args.n_splits,
     )
+
+    # Optional ONNX export
+    if args.onnx:
+        print("\n[ONNX] Starting model conversion and quantization...")
+        # Re-load the saved model for ONNX conversion
+        with open(output_model, "rb") as f:
+            saved_model = pickle.load(f)
+        onnx_result = convert_and_quantize(saved_model, output_dir=output_dir)
+        if onnx_result and report_file.exists():
+            # Merge ONNX metadata back into evaluation report
+            with open(report_file, "r", encoding="utf-8") as f:
+                existing = json.load(f)
+            existing.update(onnx_result)
+            with open(report_file, "w", encoding="utf-8") as f:
+                json.dump(existing, f, indent=2)
+            print(f"[OK] ONNX metadata merged into: {report_file}")
 
 
 if __name__ == "__main__":

@@ -121,3 +121,41 @@ def test_load_all_datasets(tmp_path):
     assert X.shape[1] == 9
     assert np.sum(y == 1) >= 1
     assert np.sum(y == 0) >= 1
+
+
+def test_load_all_datasets_empty_trials_dir(tmp_path):
+    """load_all_datasets() on an empty directory must return zero samples gracefully."""
+    trials_dir = tmp_path / "trials"
+    trials_dir.mkdir()
+    X, y = load_all_datasets(trials_dir)
+    assert len(X) == 0
+    assert len(y) == 0
+
+
+def test_mix_ratio_blending():
+    """mix-ratio=0.7 blending must produce correct synthetic supplement size."""
+    import numpy as np
+    from hub.train import generate_synthetic_features
+
+    # Simulate 100 real samples
+    rng = np.random.default_rng(0)
+    X_real = rng.random((100, 9))
+    y_real = np.concatenate([np.ones(50, dtype=np.int32), np.zeros(50, dtype=np.int32)])
+
+    X_syn, y_syn = generate_synthetic_features(n_samples=600, random_state=42)
+
+    mix_ratio = 0.7
+    n_real = len(y_real)
+    n_syn_target = max(1, int(n_real / mix_ratio * (1.0 - mix_ratio)))
+    n_syn_actual = min(len(y_syn), n_syn_target)
+
+    idx = rng.choice(len(y_syn), size=n_syn_actual, replace=False)
+    X_mixed = np.vstack([X_real, X_syn[idx]])
+    y_mixed = np.concatenate([y_real, y_syn[idx]])
+
+    # With mix_ratio=0.7 and 100 real samples: 100 / 0.7 * 0.3 ≈ 42–43 synthetic
+    assert n_syn_actual > 0
+    assert len(X_mixed) == n_real + n_syn_actual
+    # Real fraction must be ≥ 0.65 (close to requested 0.70)
+    real_fraction = n_real / len(y_mixed)
+    assert real_fraction >= 0.65

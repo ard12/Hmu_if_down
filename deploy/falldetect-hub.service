@@ -1,0 +1,26 @@
+[Unit]
+Description=Fall Detection Hub — Multi-Modal CSI + mmWave Sensor Fusion Server
+Documentation=https://github.com/ard12/Fall_Detection
+After=network.target mosquitto.service
+Wants=mosquitto.service
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/opt/falldetect
+ExecStart=/opt/falldetect/venv/bin/python main.py --web --port 8765
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=falldetect-hub
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ReadWritePaths=/opt/falldetect/incidents /opt/falldetect/datasets /opt/falldetect/models /opt/falldetect/audits
+
+[Install]
+WantedBy=multi-user.target

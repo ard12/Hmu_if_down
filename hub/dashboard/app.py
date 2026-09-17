@@ -46,6 +46,8 @@ class TelemetryBroadcaster:
         self.calibrator = None
         self.csi_engine = None
         self.fusion_engine = None
+        self.room_manager = None
+        self.audit_log = None
         self.thresholds: Dict[str, Any] = {
             "motionless_variance_threshold": 0.08,
             "velocity_threshold_mps": 1.8,
@@ -292,6 +294,160 @@ async def download_dataset(filename: str):
     if not file_path.exists() or file_path.suffix not in (".npz", ".json"):
         return JSONResponse({"error": "Dataset file not found"}, status_code=404)
     return FileResponse(file_path, filename=filename, media_type="application/octet-stream")
+
+
+@app.get("/api/rooms")
+async def get_rooms():
+    """List all known room contexts with active/inactive status and last-seen timestamps.
+
+    Returns room_id, is_active, latest_state, alert_count, and seconds_since_packet
+    for every room that has ever registered a packet during this hub session.
+    """
+    if broadcaster.room_manager is None:
+        return {"rooms": [], "total_rooms": 0, "note": "RoomManager not initialised (single-room mode)"}
+
+    rooms = broadcaster.room_manager.get_active_rooms()
+    active_count = sum(1 for r in rooms if r.get("is_active", False))
+    return {
+        "rooms": rooms,
+        "total_rooms": len(rooms),
+        "active_rooms": active_count,
+    }
+
+
+@app.post("/api/rooms/{room_id}/calibrate")
+async def post_room_calibrate(room_id: int):
+    """Trigger adaptive baseline calibration for a specific room."""
+    if broadcaster.room_manager is None:
+        return JSONResponse({"error": "RoomManager not initialised"}, status_code=503)
+
+    ctx = broadcaster.room_manager.get_room(room_id)
+    if ctx is None:
+        return JSONResponse({"error": f"Room {room_id} not found"}, status_code=404)
+
+    if ctx.calibrator is not None:
+        new_thresh = ctx.calibrator.reset_baseline()
+        return {
+            "status": "success",
+            "room_id": room_id,
+            "baseline_variance": round(ctx.calibrator.current_baseline, 4),
+            "motionless_variance_threshold": round(new_thresh, 4),
+        }
+    return {
+        "status": "success",
+        "room_id": room_id,
+        "message": "No calibrator attached to this room context",
+    }
+
+
+@app.get("/api/version")
+async def get_version():
+    """Return hub software version and active phase."""
+    try:
+        from hub import __version__, __phase__
+    except ImportError:
+        __version__ = "unknown"
+        __phase__ = 0
+    return {"version": __version__, "phase": __phase__, "service": "falldetect-hub"}
+
+
+@app.get("/firmware/{filename}")
+async def download_firmware(filename: str):
+    """Serve compiled firmware binaries for ESP32 OTA updates.
+
+    Files must be pre-built and placed in deploy/firmware/ on the hub host.
+    The ESP32 calls this endpoint during the OTA boot check.
+    """
+    firmware_dir = PROJECT_ROOT / "deploy" / "firmware"
+    file_path = firmware_dir / filename
+    # Only serve .bin and .elf files; block directory traversal
+    if ".." in filename or "/" in filename or "\\" in filename:
+        return JSONResponse({"error": "Invalid filename"}, status_code=400)
+    if not file_path.exists() or file_path.suffix not in (".bin", ".elf"):
+        return JSONResponse({"error": "Firmware file not found"}, status_code=404)
+    return FileResponse(file_path, filename=filename, media_type="application/octet-stream")
+
+
+# ---------------------------------------------------------------------------
+# Clinical Audit Endpoints (Milestone 6.3)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/audit")
+async def get_audit_events(
+    event_type: Optional[str] = None,
+    room_id: Optional[int] = None,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+):
+    """Query clinical audit events with optional filters.
+
+    Params:
+        event_type: Filter by event type (e.g. FALL_CONFIRMED).
+        room_id: Filter by room ID.
+        start: ISO 8601 UTC lower bound.
+        end: ISO 8601 UTC upper bound.
+        limit: Max rows (default 100).
+        offset: Pagination offset (default 0).
+    """
+    if broadcaster.audit_log is None:
+        return {"events": [], "total": 0, "note": "AuditLog not initialised"}
+
+    events = broadcaster.audit_log.query(
+        event_type=event_type,
+        room_id=room_id,
+        start_utc=start,
+        end_utc=end,
+        limit=limit,
+        offset=offset,
+    )
+    return {"events": events, "total": len(events), "limit": limit, "offset": offset}
+
+
+@app.post("/api/audit/export/fhir")
+async def post_fhir_export(
+    room_id: Optional[int] = None,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+):
+    """Export FALL_CONFIRMED events as a FHIR R4 Observation Bundle.
+
+    Saves the JSON bundle to audits/ and returns the download path.
+    """
+    if broadcaster.audit_log is None:
+        return JSONResponse({"error": "AuditLog not initialised"}, status_code=503)
+
+    try:
+        from hub.fhir_export import FHIRExporter
+        exporter = FHIRExporter(audit_log=broadcaster.audit_log)
+        out_path = exporter.export(start_utc=start, end_utc=end, room_id=room_id)
+        return {
+            "status": "success",
+            "filename": out_path.name,
+            "path": str(out_path),
+            "exported_at": datetime.utcnow().isoformat() + "Z",
+        }
+    except Exception as exc:
+        logger.error("FHIR export error: %s", exc)
+        return JSONResponse({"error": str(exc)}, status_code=500)
+
+
+@app.get("/api/audit/verify")
+async def get_audit_verify():
+    """Re-derive the audit log hash chain and report integrity status.
+
+    Returns:
+        {"intact": true} or {"intact": false, "first_broken_id": N}
+    """
+    if broadcaster.audit_log is None:
+        return JSONResponse({"error": "AuditLog not initialised"}, status_code=503)
+
+    intact, broken_id = broadcaster.audit_log.verify_chain()
+    result: Dict[str, Any] = {"intact": intact, "total_events": broadcaster.audit_log.count()}
+    if not intact:
+        result["first_broken_id"] = broken_id
+    return result
 
 
 @app.websocket("/ws/telemetry")
