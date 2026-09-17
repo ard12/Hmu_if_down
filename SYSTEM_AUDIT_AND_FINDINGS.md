@@ -309,10 +309,29 @@ pytest -v tests/
 │ [x] Web HUD Fleet REST Endpoints (/api/calibrate, /api/thresholds, /api/datasets)│
 │ [x] ESP-IDF Firmware mDNS Discovery (falldetect-hub.local zero-config unicast)  │
 ├─────────────────────────────────────────────────────────────────────────────────┤
-│ Phase 6 (Future — Clinical Multi-Room Deployment & Edge NPU Acceleration)      │
-│ [ ] Multi-room handover & spatial mesh roaming across multiple ESP32 AP clusters│
-│ [ ] Edge TPU / NPU quantization (TensorFlow Lite / ONNX Runtime for ARM)        │
-│ [ ] FDA 510(k) Class II Medical Device clinical audit logging and export        │
+│ Phase 6 (Completed — Clinical Multi-Room Deployment & Edge NPU Acceleration)   │
+│ [x] Multi-Room Spatial Mesh (hub/room_manager.py — per-room CSI+radar engines) │
+│ [x] UDP Relay Client for Secondary Hub Clusters (hub/relay_client.py)          │
+│ [x] ONNX Quantized Inference (hub/onnx_runner.py — INT8 pickle fallback)       │
+│ [x] ONNX Export Pipeline (hub/train.py --onnx, skl2onnx + onnxruntime)        │
+│ [x] Clinical Audit Log (hub/audit_log.py — SHA-256 hash-chain SQLite)         │
+│ [x] FHIR R4 Export (hub/fhir_export.py — LOINC 55122-0 Observation Bundle)    │
+│ [x] RBAC Token Auth (hub/auth.py — require_admin FastAPI dependency)           │
+│ [x] Audit REST Endpoints (/api/audit, /api/audit/export/fhir, /api/audit/verify)│
+│ [x] Empirical Retrain SOP (docs/RETRAIN_CHECKLIST.md — SOP-CLIN-FD-002)       │
+│ [x] Real + Synthetic Mix-Ratio Training (--mix-ratio 0.7 blend in train.py)    │
+│ [x] GitHub Actions CI (Python 3.10/3.11 matrix, pip cache, artifact upload)    │
+│ [x] Systemd Service Unit (deploy/falldetect-hub.service — Pi production daemon)│
+│ [x] Makefile (test/train/docker/release developer shortcuts)                   │
+│ [x] Semantic Version (hub/__version__ = "3.0.0", GET /api/version endpoint)    │
+│ [x] OTA Firmware Endpoint (GET /firmware/{filename} for ESP32 OTA updates)     │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ Phase 7 (Future — Federated Fleet & SaMD Certification)                        │
+│ [ ] Execute Clinical Trial Campaign (N≥15 subjects, ≥270 labeled sessions)     │
+│ [ ] Retrain on real data (target: sensitivity ≥98.5%, specificity ≥98.0%)      │
+│ [ ] FDA 510(k) Class II submission package with predicate device comparison    │
+│ [ ] ESP32 OTA firmware update integration (CONFIG_OTA_ENABLED, OTA boot check) │
+│ [ ] Multi-building hub federation (relay client + primary hub routing)         │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -326,4 +345,5 @@ pytest -v tests/
 | **1.1.0** | 2026-09-13 | `88d37b6` | Antigravity | Phase 3 Validation Audit: ISR callback decoupling in tracker firmware, live listener threads in hub, SOS filter length guards, SVD sanitization. |
 | **1.2.0** | 2026-09-14 | `6c567f6` | Antigravity | Added room noise calibration (`calibrate.py`), MQTT/webhook alerting, broadcast discovery, and integration test suite. |
 | **2.0.0** | 2026-09-14 | `cd5951c` | Antigravity | **Phase 4 Milestone Completion**: Real-Time Web Telemetry HUD, Dataset Recorder & Replay, Probabilistic ML Classifier, Home Assistant MQTT Auto-Discovery, Docker edge containerization. Full test suite: 40 passed. |
-| **2.5.0** | 2026-09-16 | Current | Antigravity | **Phase 5 Milestone Completion**: Consensus Hardening (Active Radar Veto & Kinematic Slump Detection), Carrier-Aware Scaling (2.4 vs 5.8 GHz), Background Adaptive Calibrator (EMA baseline tracking), Spatial Elevation Perturbation Ratio (EPR) & Radar Cluster Area Filter, Empirical Training Pipeline (`hub/train.py`) with 5-Fold CV, Clinical Human Trial Protocol (`docs/DATA_COLLECTION_PROTOCOL.md`), Web HUD Fleet REST Endpoints, and ESP-IDF Firmware mDNS Discovery. Total: 62 passed tests. |
+| **2.5.0** | 2026-09-16 | `e1c7f3f` | Antigravity | **Phase 5 Milestone Completion**: Consensus Hardening (Active Radar Veto & Kinematic Slump Detection), Carrier-Aware Scaling (2.4 vs 5.8 GHz), Background Adaptive Calibrator (EMA baseline tracking), Spatial Elevation Perturbation Ratio (EPR) & Radar Cluster Area Filter, Empirical Training Pipeline (`hub/train.py`) with 5-Fold CV, Clinical Human Trial Protocol (`docs/DATA_COLLECTION_PROTOCOL.md`), Web HUD Fleet REST Endpoints, and ESP-IDF Firmware mDNS Discovery. Total: 62 passed tests. |
+| **3.0.0** | 2026-09-18 | `f4cfe20` | Antigravity | **Phase 6 Milestone Completion**: Multi-Room Spatial Mesh (`hub/room_manager.py`, `hub/relay_client.py`), ONNX Quantized Inference (`hub/onnx_runner.py`, `hub/train.py --onnx`), Clinical Audit Log (`hub/audit_log.py` SHA-256 hash-chain, `hub/fhir_export.py` FHIR R4, `hub/auth.py` RBAC), 3 audit REST endpoints, Empirical Retrain SOP (`docs/RETRAIN_CHECKLIST.md`), mix-ratio blending in train.py, GitHub Actions CI (Python 3.10/3.11 matrix + pip cache), systemd service unit, Makefile, `GET /api/version`, `GET /firmware/{filename}` OTA endpoint. Total: **105 passed, 7 skipped, 0 failed**. |

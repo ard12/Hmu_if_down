@@ -15,10 +15,13 @@ An intelligent, non-invasive, privacy-preserving fall detection platform enginee
 3. **Dual-Sensor Fusion Engine**: Cross-verifies wide-area RF multipath disturbances with centimeter-accurate floor height detection, Active Radar Veto (to suppress dropped item bursts), and Kinematic Slump Detection for geriatric sliding falls.
 4. **Pet & Ground Clutter Disambiguation**: Multi-link Elevation Perturbation Ratio (EPR) and radar cluster area filtering ($<0.15\,\text{m}^2$) to reject dogs, cats, and robot vacuums.
 5. **Continuous Adaptive Calibration & 5 GHz Carrier Scaling**: Real-time EMA background variance tracking and carrier wavelength scaling ($\lambda = 0.123\,\text{m}$ for 2.4 GHz vs $0.0545\,\text{m}$ for 5.8 GHz).
-6. **Empirical ML Training Pipeline**: End-to-end training and 5-fold cross-validation suite (`hub/train.py`) and clinical trial protocol (`docs/DATA_COLLECTION_PROTOCOL.md`).
-7. **Real-Time Web Telemetry HUD & REST Fleet API**: Zero-npm, canvas-rendered dashboard with live WebSocket spectra, altitude gauges, and REST management endpoints (`/api/calibrate`, `/api/thresholds`, `/api/datasets`).
-8. **Smart Home & Zero-Config Edge Ready**: Native Home Assistant MQTT Auto-Discovery, ESP-IDF mDNS unicast discovery (`falldetect-hub.local`), and Docker Compose deployment.
-9. **Detailed Audit & Technical Findings**: Consult [**`SYSTEM_AUDIT_AND_FINDINGS.md`**](SYSTEM_AUDIT_AND_FINDINGS.md) for the comprehensive living engineering log, physics calculations, FMEA edge cases, and architectural benchmarks.
+6. **Empirical ML Training Pipeline**: End-to-end training and 5-fold cross-validation suite (`hub/train.py`) with ONNX FP32 + INT8 quantized export (`hub/onnx_runner.py`) and clinical trial protocol (`docs/DATA_COLLECTION_PROTOCOL.md`).
+7. **Real-Time Web Telemetry HUD & REST Fleet API**: Zero-npm, canvas-rendered dashboard with live WebSocket spectra, altitude gauges, and REST management endpoints (`/api/calibrate`, `/api/thresholds`, `/api/datasets`, `/api/rooms`, `/api/version`).
+8. **Smart Home & Zero-Config Edge Ready**: Native Home Assistant MQTT Auto-Discovery, ESP-IDF mDNS unicast discovery (`falldetect-hub.local`), Docker Compose deployment, and systemd service unit (`deploy/falldetect-hub.service`).
+9. **Multi-Room Spatial Mesh**: `RoomManager` (`hub/room_manager.py`) maintains independent CSI + radar engines per room; `RelayClient` (`hub/relay_client.py`) forwards packets from secondary ESP32 clusters.
+10. **Clinical Audit Logging (FDA SaMD-ready)**: SHA-256 hash-chained SQLite audit log (`hub/audit_log.py`), FHIR R4 Observation Bundle export (`hub/fhir_export.py`, LOINC 55122-0), RBAC token auth (`hub/auth.py`).
+11. **Production Packaging & CI/CD**: GitHub Actions matrix CI (Python 3.10/3.11, pip cache, artifact upload), `Makefile` developer shortcuts (`make test`, `make train`, `make release`), OTA firmware delivery (`GET /firmware/{filename}`).
+12. **Detailed Audit & Technical Findings**: Consult [**`SYSTEM_AUDIT_AND_FINDINGS.md`**](SYSTEM_AUDIT_AND_FINDINGS.md) for the comprehensive living engineering log, physics calculations, FMEA edge cases, and architectural benchmarks.
 
 
 ---
