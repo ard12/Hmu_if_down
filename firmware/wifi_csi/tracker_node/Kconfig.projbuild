@@ -1,0 +1,25 @@
+menu "Tracker Node Configuration"
+    config TRACKER_NODE_ID
+        int "Node ID (1-3)"
+        default 1
+        range 1 3
+
+    config ROOM_ID
+        int "Room ID (1-254)"
+        default 1
+        range 1 254
+
+    config OTA_ENABLED
+        bool "Enable OTA firmware updates"
+        default n
+
+    config OTA_VERSION
+        string "Target firmware version string"
+        default "3.1.0"
+        depends on OTA_ENABLED
+
+    config OTA_PORT
+        int "Hub HTTP port for OTA binary serving"
+        default 8000
+        depends on OTA_ENABLED
+endmenu

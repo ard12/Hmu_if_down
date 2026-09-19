@@ -8,7 +8,7 @@ import socket
 import sys
 import threading
 import time
-from typing import Optional
+from typing import Any, Optional
 
 # Ensure project root is on sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -105,6 +105,17 @@ def parse_args():
         default=None,
         help="Path to trained FallClassifier model (.pkl)",
     )
+    parser.add_argument(
+        "--multi-room",
+        action="store_true",
+        help="Enable multi-room spatial mesh mode using RoomManager",
+    )
+    parser.add_argument(
+        "--relay-port",
+        type=int,
+        default=None,
+        help="Listening port for secondary hub UDP relay client (e.g. 9200)",
+    )
     return parser.parse_args()
 
 
@@ -181,9 +192,10 @@ def csi_listener_thread(
     stop_event: threading.Event,
     classifier: Optional[FallClassifier] = None,
     ha_manager: Optional[HomeAssistantMQTTDiscoveryManager] = None,
+    room_manager: Optional[Any] = None,
 ):
     """Receives UDP CSI packets, maintains per-node rolling buffers,
-    and periodically runs PCA + velocity extraction → fusion engine."""
+    and periodically runs PCA + velocity extraction → fusion engine / room manager."""
 
     packet_count = 0
 
@@ -213,6 +225,7 @@ def csi_listener_thread(
             continue
 
         node_id = packet.node_id
+        room_id = getattr(packet, "room_id", 0)
         if node_id not in node_buffers:
             node_buffers[node_id] = NodeBuffer()
 
@@ -232,7 +245,14 @@ def csi_listener_thread(
                     ml_feat = classifier.extractor.extract_from_window(filtered)
                     ml_prob = classifier.predict_proba(ml_feat)
 
-                state = fusion_engine.update_csi(features, ml_prob=ml_prob)
+                if room_manager is not None:
+                    state_val = room_manager.on_csi_packet(room_id, features, ml_prob=ml_prob)
+                    try:
+                        state = UnifiedFallState(state_val)
+                    except (ValueError, TypeError):
+                        state = UnifiedFallState.NORMAL
+                else:
+                    state = fusion_engine.update_csi(features, ml_prob=ml_prob)
 
                 # Broadcast to Web HUD
                 try:
@@ -284,8 +304,9 @@ def radar_listener_thread(
     fusion_engine: DualFusionEngine,
     stop_event: threading.Event,
     ha_manager: Optional[HomeAssistantMQTTDiscoveryManager] = None,
+    room_manager: Optional[Any] = None,
 ):
-    """Receives UDP radar datagrams (JSON or binary) and feeds the fusion engine."""
+    """Receives UDP radar datagrams (JSON or binary) and feeds the fusion engine / room manager."""
 
     while not stop_event.is_set():
         try:
@@ -307,7 +328,14 @@ def radar_listener_thread(
             telemetry = radar_receiver.parse_binary_frame(data)
 
         if telemetry is not None:
-            state = fusion_engine.update_radar(telemetry)
+            if room_manager is not None:
+                state_val = room_manager.on_radar_packet(0, telemetry)
+                try:
+                    state = UnifiedFallState(state_val)
+                except (ValueError, TypeError):
+                    state = UnifiedFallState.NORMAL
+            else:
+                state = fusion_engine.update_radar(telemetry)
 
             # Broadcast to Web HUD
             try:
@@ -692,10 +720,18 @@ def main():
             count = ha_manager.announce_discovery()
             print(f"  [HA]    Announced {count} Home Assistant MQTT discovery entities")
 
+    room_manager = None
+    if args.multi_room:
+        from hub.room_manager import RoomManager
+        room_manager = RoomManager()
+        print("  [MESH]  Multi-room spatial mesh enabled")
+
     if args.web:
         from hub.dashboard.app import broadcaster as web_broadcaster
         web_broadcaster.csi_engine = fusion_engine.csi_engine
         web_broadcaster.fusion_engine = fusion_engine
+        if room_manager:
+            web_broadcaster.room_manager = room_manager
 
         def _run_web(port: int):
             import uvicorn
@@ -728,6 +764,52 @@ def main():
     radar_receiver = RadarReceiver()
     node_buffers = {1: NodeBuffer(), 2: NodeBuffer(), 3: NodeBuffer()}
 
+    # Optional UDP relay client for secondary clusters
+    relay_client = None
+    if args.relay_port:
+        from hub.relay_client import RelayClient
+        node_buffers_by_room = {}
+
+        def _handle_raw_csi(r_id: int, payload: bytes):
+            pkt = preprocessor.parse_packet(payload)
+            if pkt:
+                pkt.room_id = r_id
+                if r_id not in node_buffers_by_room:
+                    node_buffers_by_room[r_id] = {}
+                if pkt.node_id not in node_buffers_by_room[r_id]:
+                    node_buffers_by_room[r_id][pkt.node_id] = NodeBuffer()
+                nb = node_buffers_by_room[r_id][pkt.node_id]
+                nb.push(pkt)
+                if nb.total_received % EXTRACTION_INTERVAL == 0:
+                    win = nb.get_window()
+                    if win.shape[0] >= 32:
+                        flt = preprocessor.filter_stream(win)
+                        feat = pca_extractor.extract(node_id=pkt.node_id, filtered_data=flt)
+                        if room_manager:
+                            room_manager.on_csi_packet(r_id, feat)
+
+        def _handle_raw_radar(r_id: int, payload: bytes):
+            try:
+                pl = payload.decode("utf-8", errors="ignore").strip()
+                tel = radar_receiver.parse_json_datagram(pl)
+            except Exception:
+                tel = None
+            if tel is None:
+                tel = radar_receiver.parse_binary_frame(payload)
+            if tel is not None and room_manager:
+                room_manager.on_radar_packet(r_id, tel)
+
+        relay_client = RelayClient(
+            room_manager=room_manager,
+            relay_port=args.relay_port,
+            raw_csi_handler=_handle_raw_csi,
+            raw_radar_handler=_handle_raw_radar,
+        )
+        relay_client.start()
+        print(f"  [RELAY] UDP relay listening on port {args.relay_port}")
+        if args.web:
+            web_broadcaster.relay_client = relay_client
+
     # CSI Listener
     if mode in (OperatingMode.CSI_ONLY, OperatingMode.FUSION):
         csi_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -738,7 +820,7 @@ def main():
 
         t = threading.Thread(
             target=csi_listener_thread,
-            args=(csi_sock, preprocessor, pca_extractor, fusion_engine, node_buffers, stop_event, classifier, ha_manager),
+            args=(csi_sock, preprocessor, pca_extractor, fusion_engine, node_buffers, stop_event, classifier, ha_manager, room_manager),
             daemon=True,
         )
         threads.append(t)
@@ -753,7 +835,7 @@ def main():
 
         t = threading.Thread(
             target=radar_listener_thread,
-            args=(radar_sock, radar_receiver, fusion_engine, stop_event, ha_manager),
+            args=(radar_sock, radar_receiver, fusion_engine, stop_event, ha_manager, room_manager),
             daemon=True,
         )
         threads.append(t)
@@ -779,6 +861,8 @@ def main():
         print("\n[Shutting down] Server stopped by user.")
     finally:
         stop_event.set()
+        if relay_client:
+            relay_client.stop()
         for s in sockets:
             try:
                 s.close()

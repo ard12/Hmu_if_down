@@ -18,6 +18,18 @@
 #include "mdns.h"
 #include "mmwave_parser.h"
 
+#if CONFIG_OTA_ENABLED
+#include "esp_ota_ops.h"
+#include "esp_http_client.h"
+#include "esp_https_ota.h"
+#ifndef CONFIG_OTA_VERSION
+#define CONFIG_OTA_VERSION "3.1.0"
+#endif
+#ifndef CONFIG_OTA_PORT
+#define CONFIG_OTA_PORT 8000
+#endif
+#endif
+
 static const char *TAG = "MMWAVE_GATEWAY";
 
 #define UART_NUM UART_NUM_1
@@ -57,9 +69,9 @@ static void on_radar_event(const radar_telemetry_t *t) {
              t->fall_state, t->posture, t->target_height_m, t->presence_detected, t->dwell_time_sec, t->cluster_area_m2);
 
     if (s_udp_sock >= 0) {
-        char msg[160];
+        char msg[192];
         int len = snprintf(msg, sizeof(msg),
-                           "{\"fall\":%d,\"posture\":%d,\"height\":%.2f,\"dwell\":%ld,\"cluster_area\":%.2f}\n",
+                           "{\"fall\":%d,\"posture\":%d,\"height\":%.2f,\"dwell\":%ld,\"cluster_area\":%.2f,\"fw_ver\":\"3.1.0\"}\n",
                            t->fall_state, t->posture, t->target_height_m, t->dwell_time_sec, t->cluster_area_m2);
         sendto(s_udp_sock, msg, len, 0, (struct sockaddr *)&s_dest_addr, sizeof(s_dest_addr));
     }
@@ -124,6 +136,30 @@ static void init_wifi(void) {
     ESP_LOGI(TAG, "Wi-Fi initialized in STA mode for mmWave Gateway");
 }
 
+#if CONFIG_OTA_ENABLED
+static void check_and_apply_ota(void) {
+    char ota_url[128];
+    snprintf(ota_url, sizeof(ota_url),
+             "http://" IPSTR ":%d/firmware/radar_v" CONFIG_OTA_VERSION ".bin",
+             IP2STR(&s_dest_addr.sin_addr), CONFIG_OTA_PORT);
+    ESP_LOGI(TAG, "[OTA] Checking for update: %s", ota_url);
+
+    esp_http_client_config_t http_cfg = {
+        .url = ota_url,
+        .timeout_ms = 8000,
+        .keep_alive_enable = false,
+    };
+    esp_https_ota_config_t ota_cfg = { .http_config = &http_cfg };
+    esp_err_t err = esp_https_ota(&ota_cfg);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "[OTA] Update succeeded — rebooting to new firmware.");
+        esp_restart();
+    } else {
+        ESP_LOGW(TAG, "[OTA] No update applied (err=%s) — continuing normal boot.", esp_err_to_name(err));
+    }
+}
+#endif
+
 void app_main(void) {
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -134,6 +170,9 @@ void app_main(void) {
 
     init_wifi();
     init_udp_socket();
+#if CONFIG_OTA_ENABLED
+    check_and_apply_ota();
+#endif
     mmwave_parser_init(on_radar_event);
     init_uart();
 

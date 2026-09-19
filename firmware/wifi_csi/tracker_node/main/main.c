@@ -23,11 +23,27 @@
 #include "lwip/sockets.h"
 #include "mdns.h"
 
+#if CONFIG_OTA_ENABLED
+#include "esp_ota_ops.h"
+#include "esp_http_client.h"
+#include "esp_https_ota.h"
+#ifndef CONFIG_OTA_VERSION
+#define CONFIG_OTA_VERSION "3.1.0"
+#endif
+#ifndef CONFIG_OTA_PORT
+#define CONFIG_OTA_PORT 8000
+#endif
+#endif
+
 static const char *TAG = "CSI_TRACKER";
 
 // Configure Node ID: 1, 2, or 3 (change per flashed board)
 #ifndef CONFIG_TRACKER_NODE_ID
 #define CONFIG_TRACKER_NODE_ID 1
+#endif
+
+#ifndef CONFIG_ROOM_ID
+#define CONFIG_ROOM_ID 1
 #endif
 
 #define WIFI_CHANNEL 6
@@ -44,7 +60,9 @@ static const char *TAG = "CSI_TRACKER";
 typedef struct __attribute__((packed)) {
     uint8_t magic[4];          // "CSIF"
     uint8_t node_id;           // 1, 2, or 3
+    uint8_t room_id;           // compile-time room identifier (default 0x01)
     int8_t rssi;               // Packet RSSI in dBm
+    uint8_t _pad;              // alignment pad (was unused byte)
     uint16_t subcarrier_count; // Number of subcarriers
     uint32_t timestamp_ms;
     uint32_t seq_num;
@@ -97,7 +115,9 @@ static void wifi_csi_rx_callback(void *ctx, wifi_csi_info_t *info) {
 
     memcpy(hdr->magic, "CSIF", 4);
     hdr->node_id = (uint8_t)CONFIG_TRACKER_NODE_ID;
+    hdr->room_id = (uint8_t)CONFIG_ROOM_ID;
     hdr->rssi = info->rx_ctrl.rssi;
+    hdr->_pad = 0;
     hdr->subcarrier_count = subcarrier_count;
     hdr->timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000);
     hdr->seq_num = s_packet_counter++;
@@ -230,6 +250,30 @@ static void init_wifi_csi(void) {
              CONFIG_TRACKER_NODE_ID, WIFI_CHANNEL);
 }
 
+#if CONFIG_OTA_ENABLED
+static void check_and_apply_ota(void) {
+    char ota_url[128];
+    snprintf(ota_url, sizeof(ota_url),
+             "http://" IPSTR ":%d/firmware/tracker_v" CONFIG_OTA_VERSION ".bin",
+             IP2STR(&s_dest_addr.sin_addr), CONFIG_OTA_PORT);
+    ESP_LOGI(TAG, "[OTA] Checking for update: %s", ota_url);
+
+    esp_http_client_config_t http_cfg = {
+        .url = ota_url,
+        .timeout_ms = 8000,
+        .keep_alive_enable = false,
+    };
+    esp_https_ota_config_t ota_cfg = { .http_config = &http_cfg };
+    esp_err_t err = esp_https_ota(&ota_cfg);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "[OTA] Update succeeded — rebooting to new firmware.");
+        esp_restart();
+    } else {
+        ESP_LOGW(TAG, "[OTA] No update applied (err=%s) — continuing normal boot.", esp_err_to_name(err));
+    }
+}
+#endif
+
 void app_main(void) {
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -246,6 +290,9 @@ void app_main(void) {
     }
 
     init_udp_socket();
+#if CONFIG_OTA_ENABLED
+    check_and_apply_ota();
+#endif
     init_wifi_csi();
 
     // Launch the dedicated UDP transmission task (safe context for sendto)

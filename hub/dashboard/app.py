@@ -47,6 +47,7 @@ class TelemetryBroadcaster:
         self.csi_engine = None
         self.fusion_engine = None
         self.room_manager = None
+        self.relay_client = None
         self.audit_log = None
         self.thresholds: Dict[str, Any] = {
             "motionless_variance_threshold": 0.08,
@@ -338,6 +339,14 @@ async def post_room_calibrate(room_id: int):
         "room_id": room_id,
         "message": "No calibrator attached to this room context",
     }
+
+
+@app.get("/api/relay/stats")
+async def get_relay_stats():
+    """Return UDP relay client statistics."""
+    if broadcaster.relay_client is None:
+        return {"running": False, "note": "Relay client not active"}
+    return broadcaster.relay_client.stats()
 
 
 @app.get("/api/version")

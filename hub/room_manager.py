@@ -135,12 +135,13 @@ class RoomManager:
     # Packet dispatch
     # ------------------------------------------------------------------
 
-    def on_csi_packet(self, room_id: int, features: Any) -> str:
+    def on_csi_packet(self, room_id: int, features: Any, ml_prob: float = 0.0) -> str:
         """Route a CSI feature update to the correct room engine.
 
         Args:
             room_id: Integer room identifier from packet header.
             features: CSIDynamicFeatures object.
+            ml_prob: Optional ML fall probability.
 
         Returns:
             Latest UnifiedFallState string for the room.
@@ -153,8 +154,8 @@ class RoomManager:
             return ctx.latest_state
 
         try:
-            state = ctx.fusion_engine.update_csi(features)
-            ctx.latest_state = str(state)
+            state = ctx.fusion_engine.update_csi(features, ml_prob=ml_prob)
+            ctx.latest_state = state.value if hasattr(state, "value") else str(state)
             # Propagate to calibrator
             if ctx.calibrator is not None:
                 ctx.calibrator.update(features.moving_variance)
