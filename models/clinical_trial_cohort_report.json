@@ -1,0 +1,89 @@
+{
+  "cohorts": {
+    "young_adults": {
+      "cohort_name": "young_adults",
+      "n_samples": 60,
+      "tp": 30,
+      "fp": 0,
+      "tn": 30,
+      "fn": 0,
+      "sensitivity": 1.0,
+      "sensitivity_ci": [
+        0.8865,
+        1.0
+      ],
+      "specificity": 1.0,
+      "specificity_ci": [
+        0.8865,
+        1.0
+      ],
+      "accuracy": 1.0,
+      "cohens_kappa": 1.0
+    },
+    "community_dwelling_elderly": {
+      "cohort_name": "community_dwelling_elderly",
+      "n_samples": 60,
+      "tp": 30,
+      "fp": 0,
+      "tn": 30,
+      "fn": 0,
+      "sensitivity": 1.0,
+      "sensitivity_ci": [
+        0.8865,
+        1.0
+      ],
+      "specificity": 1.0,
+      "specificity_ci": [
+        0.8865,
+        1.0
+      ],
+      "accuracy": 1.0,
+      "cohens_kappa": 1.0
+    },
+    "frail_geriatric": {
+      "cohort_name": "frail_geriatric",
+      "n_samples": 60,
+      "tp": 30,
+      "fp": 0,
+      "tn": 30,
+      "fn": 0,
+      "sensitivity": 1.0,
+      "sensitivity_ci": [
+        0.8865,
+        1.0
+      ],
+      "specificity": 1.0,
+      "specificity_ci": [
+        0.8865,
+        1.0
+      ],
+      "accuracy": 1.0,
+      "cohens_kappa": 1.0
+    },
+    "mobility_aid_users": {
+      "cohort_name": "mobility_aid_users",
+      "n_samples": 60,
+      "tp": 30,
+      "fp": 0,
+      "tn": 30,
+      "fn": 0,
+      "sensitivity": 1.0,
+      "sensitivity_ci": [
+        0.8865,
+        1.0
+      ],
+      "specificity": 1.0,
+      "specificity_ci": [
+        0.8865,
+        1.0
+      ],
+      "accuracy": 1.0,
+      "cohens_kappa": 1.0
+    }
+  },
+  "overall_trials": 240,
+  "min_sensitivity": 1.0,
+  "max_sensitivity": 1.0,
+  "disparity_ratio": 1.0,
+  "gmlp_principle_7_passed": true
+}

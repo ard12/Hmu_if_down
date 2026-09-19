@@ -36,6 +36,7 @@ class DualFusionEngine:
         enable_radar_veto: bool = False,
         enable_slump_detection: bool = True,
         fall_type_classifier: Optional[Any] = None,
+        vital_signs_estimator: Optional[Any] = None,
     ):
         self.mode = mode
         self.alert = alert_dispatcher or AlertDispatcher()
@@ -44,6 +45,7 @@ class DualFusionEngine:
         self.enable_radar_veto = enable_radar_veto
         self.enable_slump_detection = enable_slump_detection
         self.fall_type_classifier = fall_type_classifier
+        self.vital_signs_estimator = vital_signs_estimator
         self.veto_timeout_sec = 5.0
 
         self.last_radar: Optional[RadarTelemetry] = None
@@ -53,6 +55,7 @@ class DualFusionEngine:
         self.last_ml_prob: float = 0.0
         self.last_fall_type: Optional[str] = None
         self.last_fall_type_confidence: float = 0.0
+        self.last_vital_signs: Optional[Any] = None
         self.unified_state: UnifiedFallState = UnifiedFallState.NORMAL
 
         self.radar_height_history: Deque[Tuple[float, float, RadarPosture]] = deque(maxlen=60)
@@ -204,6 +207,15 @@ class DualFusionEngine:
                     self.last_fall_type = ft
                     self.last_fall_type_confidence = conf
                     details += f", FallType={ft} ({conf:.0%})"
+                except Exception:
+                    pass
+
+            if self.vital_signs_estimator is not None:
+                try:
+                    dummy_phase = [0.0] * 40
+                    vs = self.vital_signs_estimator.process_radar_quiescence(dummy_phase, sample_rate_hz=20.0)
+                    self.last_vital_signs = vs
+                    details += f", VitalSigns={vs.status}"
                 except Exception:
                     pass
 

@@ -297,6 +297,10 @@ pytest -v tests/
 | [`tests/test_traceability.py`](file:///d:/Fall_detection/tests/test_traceability.py) | 4 | IEC 62304 SRS traceability matrix parsing, critical coverage verification |
 | [`tests/test_risk_analysis.py`](file:///d:/Fall_detection/tests/test_risk_analysis.py) | 5 | ISO 14971 FMEA risk register validation, severity x probability checks |
 | [`tests/test_clinical_report.py`](file:///d:/Fall_detection/tests/test_clinical_report.py) | 5 | Automated clinical validation report generator, audit statistics extraction |
+| [`tests/test_vital_signs.py`](file:///d:/Fall_detection/tests/test_vital_signs.py) | 6 | Respiration frequency extraction (0.1-0.5 Hz), chest displacement, apnea detection |
+| [`tests/test_clinical_trial_runner.py`](file:///d:/Fall_detection/tests/test_clinical_trial_runner.py) | 6 | FDA GMLP Principle 7 cohort simulation, Wilson score 95% CIs, Cohen's kappa, fairness |
+| [`tests/test_cloud_sync.py`](file:///d:/Fall_detection/tests/test_cloud_sync.py) | 5 | Multi-facility cloud gateway, offline SQLite store-and-forward queue, retry logic |
+| [`tests/test_diagnostics.py`](file:///d:/Fall_detection/tests/test_diagnostics.py) | 5 | IEC 60601-1-8 system diagnostics, packet jitter monitoring, automated self-tests |
 
 ---
 
@@ -365,6 +369,14 @@ pytest -v tests/
 │ [x] FDA Substantial Equivalence Decision Checklist (SE-001 through SE-010)      │
 │ [x] Automated Clinical Performance Validation Report (generate_clinical_report) │
 │ [x] Makefile 'report' target and GitHub Actions CI certification validation     │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ Phase 10 (Completed — Multi-Facility Cloud Gateway, Vital Signs & Diagnostics) │
+│ [x] Post-Fall Vital Signs micro-Doppler Estimator (hub/vital_signs.py, 6-30 bpm)│
+│ [x] Automated Clinical Trial Cohort Simulator (hub/clinical_trial_runner.py)    │
+│ [x] FDA GMLP Principle 7 Demographic Disparity Report (Wilson 95% CI & Kappa)   │
+│ [x] Multi-Facility Cloud Gateway & Offline Sync (hub/cloud_sync.py, /api/cloud) │
+│ [x] Continuous System Diagnostics Daemon (hub/diagnostics.py, IEC 60601-1-8)   │
+│ [x] Health & Watchdog Dashboard Endpoints (/api/diagnostics/health, /metrics)   │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -382,5 +394,7 @@ pytest -v tests/
 | **3.0.0** | 2026-09-18 | `f4cfe20` | Antigravity | **Phase 6 Milestone Completion**: Multi-Room Spatial Mesh (`hub/room_manager.py`, `hub/relay_client.py`), ONNX Quantized Inference (`hub/onnx_runner.py`, `hub/train.py --onnx`), Clinical Audit Log (`hub/audit_log.py` SHA-256 hash-chain, `hub/fhir_export.py` FHIR R4, `hub/auth.py` RBAC), 3 audit REST endpoints, Empirical Retrain SOP (`docs/RETRAIN_CHECKLIST.md`), mix-ratio blending in train.py, GitHub Actions CI (Python 3.10/3.11 matrix + pip cache), systemd service unit, Makefile, `GET /api/version`, `GET /firmware/{filename}` OTA endpoint. Total: **105 passed, 7 skipped, 0 failed**. |
 | **3.1.0** | 2026-09-19 | `522d070` | Antigravity | **Phase 7 Milestone Completion**: ESP32 Tracker & Radar OTA firmware update routines under `CONFIG_OTA_ENABLED`, 18-byte V2 UDP header with hardware `room_id`, hub multi-room packet routing (`hub/server.py --multi-room`), RelayClient socket federation wiring (`--relay-port` and `GET /api/relay/stats`). Total: **113 passed, 7 skipped, 0 failed**. |
 | **3.2.0** | 2026-09-19 | `9ce9e3c` | Antigravity | **Phase 8 Milestone Completion**: Advanced signal processing with temporal attention windowing, Platt-calibrated Bayesian fall probability (`CalibratedClassifierCV`), graduated alert severities (`p_suspected`, `p_confirmed`, `p_high_confidence`), fall-type second-stage classifier (5 clinical classes), population health analytics module (`hub/analytics.py`) with MTBF and hourly distributions, population health dashboard UI (`analytics.html`). Total: **135 passed, 7 skipped, 0 failed**. |
-| **3.3.0** | 2026-09-19 | Current | Antigravity | **Phase 9 Milestone Completion**: Full FDA SaMD Certification Package & Automated Clinical Reporting. IEC 62304 Software Requirement Traceability Matrix with 32 SRS items and 100% test coverage (`docs/requirements.yaml`, `docs/generate_traceability.py`, `docs/TRACEABILITY_MATRIX.md`), ISO 14971 FMEA Risk Register with 22 validated hazards (`docs/risk_analysis.yaml`, `docs/validate_risk_analysis.py`, `docs/RISK_ANALYSIS.md`), FDA 510(k) Predicate Device Comparison against Philips Lifeline AutoAlert K151548 (`docs/PREDICATE_COMPARISON.md`, `docs/SUBSTANTIAL_EQUIVALENCE_CHECKLIST.md`), Automated Clinical Performance Validation Report Generator (`docs/generate_clinical_report.py`, `docs/CLINICAL_PERFORMANCE_REPORT.md`), Makefile `report` target, CI automation. Total: **149 passed, 7 skipped, 0 failed**. |
+| **3.3.0** | 2026-09-19 | `af7ada4` | Antigravity | **Phase 9 Milestone Completion**: Full FDA SaMD Certification Package & Automated Clinical Reporting. IEC 62304 Software Requirement Traceability Matrix with 32 SRS items and 100% test coverage (`docs/requirements.yaml`, `docs/generate_traceability.py`, `docs/TRACEABILITY_MATRIX.md`), ISO 14971 FMEA Risk Register with 22 validated hazards (`docs/risk_analysis.yaml`, `docs/validate_risk_analysis.py`, `docs/RISK_ANALYSIS.md`), FDA 510(k) Predicate Device Comparison against Philips Lifeline AutoAlert K151548 (`docs/PREDICATE_COMPARISON.md`, `docs/SUBSTANTIAL_EQUIVALENCE_CHECKLIST.md`), Automated Clinical Performance Validation Report Generator (`docs/generate_clinical_report.py`, `docs/CLINICAL_PERFORMANCE_REPORT.md`), Makefile `report` target, CI automation. Total: **149 passed, 7 skipped, 0 failed**. |
+| **3.4.0** | 2026-09-20 | Current | Antigravity | **Phase 10 Milestone Completion**: Enterprise Healthcare Deployment & Vital Signs Verification. Post-Fall Respiration & Vital Signs micro-Doppler Estimator (`hub/vital_signs.py`, 6-30 bpm), Automated Clinical Trial Cohort Simulator (`hub/clinical_trial_runner.py`), FDA GMLP Principle 7 Demographic Fairness & Disparity Report (`docs/CLINICAL_TRIAL_COHORT_REPORT.md`), Multi-Facility Cloud Gateway with Offline Store-and-Forward SQLite Queue (`hub/cloud_sync.py`), Continuous System Diagnostics & IEC 60601-1-8 Alarm System Watchdog Daemon (`hub/diagnostics.py`). Total: **171 passed, 7 skipped, 0 failed**. |
+
 

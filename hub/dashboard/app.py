@@ -50,6 +50,8 @@ class TelemetryBroadcaster:
         self.relay_client = None
         self.audit_log = None
         self.analytics = None
+        self.cloud_gateway = None
+        self.diagnostics_watcher = None
         self.latest_fall_type: Optional[str] = None
         self.latest_fall_type_conf: float = 0.0
         self.thresholds: Dict[str, Any] = {
@@ -517,6 +519,84 @@ async def get_analytics_risk_windows(threshold: int = 2, window_days: int = 7):
     if analytics is None:
         return []
     return analytics.high_risk_windows(threshold=threshold, window_days=window_days)
+
+
+# ---------------------------------------------------------------------------
+# Multi-Facility Cloud Gateway Endpoints (Milestone 10.3)
+# ---------------------------------------------------------------------------
+
+def _get_cloud_gateway():
+    if broadcaster.cloud_gateway is not None:
+        return broadcaster.cloud_gateway
+    try:
+        from hub.cloud_sync import CloudSyncGateway
+        broadcaster.cloud_gateway = CloudSyncGateway()
+        return broadcaster.cloud_gateway
+    except Exception:
+        return None
+
+
+@app.get("/api/cloud/status")
+async def get_cloud_status():
+    """Return cloud synchronization queue status and health."""
+    gw = _get_cloud_gateway()
+    if gw is None:
+        return {"online": False, "pending_records": 0, "status": "Not configured"}
+    return gw.get_status()
+
+
+@app.post("/api/cloud/sync")
+async def post_cloud_sync(max_records: int = 50):
+    """Trigger manual flush of pending cloud sync queue."""
+    gw = _get_cloud_gateway()
+    if gw is None:
+        return JSONResponse({"error": "Cloud gateway not available"}, status_code=503)
+    synced, failed = gw.flush_queue(max_records=max_records)
+    status = gw.get_status()
+    return {"synced": synced, "failed": failed, "pending_records": status["pending_records"]}
+
+
+# ---------------------------------------------------------------------------
+# Continuous System Diagnostics Endpoints (Milestone 10.4)
+# ---------------------------------------------------------------------------
+
+def _get_diagnostics_watcher():
+    if broadcaster.diagnostics_watcher is not None:
+        return broadcaster.diagnostics_watcher
+    try:
+        from hub.diagnostics import SystemDiagnosticsWatcher
+        broadcaster.diagnostics_watcher = SystemDiagnosticsWatcher()
+        return broadcaster.diagnostics_watcher
+    except Exception:
+        return None
+
+
+@app.get("/api/diagnostics/health")
+async def get_diagnostics_health():
+    """Return overall system health and subsystem status."""
+    watcher = _get_diagnostics_watcher()
+    if watcher is None:
+        return {"status": "UNKNOWN", "note": "Diagnostics watcher not initialised"}
+    return watcher.evaluate_health()
+
+
+@app.get("/api/diagnostics/metrics")
+async def get_diagnostics_metrics():
+    """Return telemetry rates, jitter, and subsystem performance metrics."""
+    watcher = _get_diagnostics_watcher()
+    if watcher is None:
+        return {"subsystems": {}, "status": "UNKNOWN"}
+    health = watcher.evaluate_health()
+    return {"subsystems": health.get("subsystems", {}), "status": health.get("status")}
+
+
+@app.post("/api/diagnostics/self-test")
+async def post_diagnostics_self_test():
+    """Trigger IEC 60601-1-8 automated self-test across all modules."""
+    watcher = _get_diagnostics_watcher()
+    if watcher is None:
+        return JSONResponse({"error": "Diagnostics watcher not available"}, status_code=503)
+    return watcher.run_self_test()
 
 
 @app.websocket("/ws/telemetry")
