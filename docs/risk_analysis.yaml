@@ -1,0 +1,289 @@
+# ISO 14971 FMEA Risk Register — Fall Detection SaMD v3.x
+# Application of Risk Management to Medical Devices
+
+hazards:
+  HAZ-001:
+    hazard: "False negative — fall not detected"
+    cause: "CSI signal masked by furniture or wall occlusion"
+    severity: 5
+    probability: 2
+    risk_before: 10
+    controls:
+      - "Multi-link coincidence voting (>=2/3 nodes must agree)"
+      - "Radar cross-verification in FUSION mode"
+      - "Kinematic slump detection for slow falls"
+    residual_risk: 4
+    acceptable: true
+
+  HAZ-002:
+    hazard: "False positive — ADL misclassified as fall"
+    cause: "Dropped object or pet triggers CSI burst"
+    severity: 2
+    probability: 3
+    risk_before: 6
+    controls:
+      - "EPR ground clutter filter (EPR < 0.15)"
+      - "Radar cluster area filter (< 0.15 m²)"
+      - "Active Radar Veto (suppress bursts when radar shows standing posture)"
+    residual_risk: 2
+    acceptable: true
+
+  HAZ-003:
+    hazard: "Slow slump / syncope fall missed"
+    cause: "Low Doppler velocity during gradual kinematic collapse"
+    severity: 5
+    probability: 2
+    risk_before: 10
+    controls:
+      - "Secondary radar centroid height tracking (< 0.5m persistence)"
+      - "Dedicated syncope fall-type classification profile"
+      - "Extended quiescence window analysis"
+    residual_risk: 4
+    acceptable: true
+
+  HAZ-004:
+    hazard: "Delayed caregiver notification (>10s)"
+    cause: "WiFi network congestion or packet loss during alert dispatch"
+    severity: 4
+    probability: 2
+    risk_before: 8
+    controls:
+      - "Local audible alarm triggered independently of network"
+      - "Exponential backoff retry with offline queuing"
+      - "Dual dispatch via WebSocket and Home Assistant MQTT"
+    residual_risk: 3
+    acceptable: true
+
+  HAZ-005:
+    hazard: "Unmonitored blind spot due to node power loss"
+    cause: "ESP32 node unplugged or power failure"
+    severity: 4
+    probability: 2
+    risk_before: 8
+    controls:
+      - "Heartbeat monitor and node liveness watchdog (timeout 5s)"
+      - "Automatic degraded single-modality fallback"
+      - "Dashboard system alert on node offline"
+    residual_risk: 3
+    acceptable: true
+
+  HAZ-006:
+    hazard: "Parser crash or buffer overflow from malformed packet"
+    cause: "Corrupted UDP datagram or fuzzing attack"
+    severity: 4
+    probability: 1
+    risk_before: 4
+    controls:
+      - "Strict header length and magic number verification"
+      - "Boundary checks on subcarrier counts and payload lengths"
+      - "Graceful exception isolation per UDP packet"
+    residual_risk: 2
+    acceptable: true
+
+  HAZ-007:
+    hazard: "Radar RF interference / saturation"
+    cause: "External 60GHz WiFi 60ad or adjacent mmWave radar sensors"
+    severity: 3
+    probability: 2
+    risk_before: 6
+    controls:
+      - "Radar frame checksum verification (CRC16)"
+      - "Signal-to-Noise Ratio (SNR) thresholding on point clouds"
+      - "Dynamic fallback to CSI-only mode on corrupted radar frames"
+    residual_risk: 2
+    acceptable: true
+
+  HAZ-008:
+    hazard: "Alert storm flooding emergency dispatchers"
+    cause: "Repeated threshold triggers during ambiguous patient motion"
+    severity: 3
+    probability: 3
+    risk_before: 9
+    controls:
+      - "Configurable alert cooldown period (default 30s)"
+      - "Post-fall state latching until explicit operator reset or standing detected"
+      - "Graduated severity classification (Suspected vs Confirmed)"
+    residual_risk: 3
+    acceptable: true
+
+  HAZ-009:
+    hazard: "Clinical audit log corruption or tampering"
+    cause: "Unauthorised database modification or disk write failure"
+    severity: 4
+    probability: 1
+    risk_before: 4
+    controls:
+      - "Tamper-evident SHA-256 hash-chaining across all events"
+      - "Periodic automated chain integrity validation"
+      - "SQLite WAL mode with ACID transactions"
+    residual_risk: 2
+    acceptable: true
+
+  HAZ-010:
+    hazard: "Malicious firmware installation on ESP32 nodes"
+    cause: "Unauthenticated OTA update request"
+    severity: 5
+    probability: 1
+    risk_before: 5
+    controls:
+      - "Strict directory traversal path sanitization on firmware download"
+      - "OTA enabled only under explicit CONFIG_OTA_ENABLED build flag"
+      - "Firmware version and binary integrity checks"
+    residual_risk: 3
+    acceptable: true
+
+  HAZ-011:
+    hazard: "Cross-room fall misattribution in multi-room facility"
+    cause: "CSI packet attributed to wrong room due to missing room tagging"
+    severity: 4
+    probability: 2
+    risk_before: 8
+    controls:
+      - "Hardware room-ID byte in 18-byte V2 UDP header"
+      - "Isolated RoomContext state machines in RoomManager"
+      - "Separate per-room alert dispatches and audit tracking"
+    residual_risk: 3
+    acceptable: true
+
+  HAZ-012:
+    hazard: "Detection sensitivity degradation due to room alterations"
+    cause: "Furniture rearrangement or new metallic objects altering multipath"
+    severity: 3
+    probability: 3
+    risk_before: 9
+    controls:
+      - "Continuous background noise floor tracking via AdaptiveCalibrator"
+      - "One-click / REST dynamic baseline recalibration endpoint"
+      - "Automatic drift warning in population analytics"
+    residual_risk: 3
+    acceptable: true
+
+  HAZ-013:
+    hazard: "Unauthorised modification of sensitivity thresholds"
+    cause: "Unprotected REST API threshold update endpoint"
+    severity: 4
+    probability: 2
+    risk_before: 8
+    controls:
+      - "Audit logging of all THRESHOLD_CHANGE events"
+      - "Hard min/max bounds enforcement on threshold updates"
+      - "Read-only fallback defaults upon invalid parameter values"
+    residual_risk: 3
+    acceptable: true
+
+  HAZ-014:
+    hazard: "Relay federation socket drop during fall event"
+    cause: "TCP socket termination or network interface bounce"
+    severity: 4
+    probability: 2
+    risk_before: 8
+    controls:
+      - "Automatic socket reconnection with exponential backoff"
+      - "Local buffering of un-forwarded frames"
+      - "RelayClient drop counters exposed via /api/relay/stats"
+    residual_risk: 3
+    acceptable: true
+
+  HAZ-015:
+    hazard: "EHR interoperability rejection of fall alert"
+    cause: "Malformed HL7 FHIR Observation JSON"
+    severity: 3
+    probability: 1
+    risk_before: 3
+    controls:
+      - "Automated JSON schema validation against FHIR R4 standard"
+      - "Unit tests validating codeable concepts (SNOMED-CT / LOINC)"
+      - "Standardized fallback plaintext dispatch"
+    residual_risk: 1
+    acceptable: true
+
+  HAZ-016:
+    hazard: "MQTT broker downtime causes silent notification loss"
+    cause: "Home Assistant server reboot or network partition"
+    severity: 4
+    probability: 2
+    risk_before: 8
+    controls:
+      - "Multi-channel notification: MQTT + WebSocket + Local AuditLog"
+      - "Non-blocking async MQTT publishing with auto-reconnect"
+      - "TelemetryBroadcaster buffer retention"
+    residual_risk: 3
+    acceptable: true
+
+  HAZ-017:
+    hazard: "Hub application memory exhaustion after long runtime"
+    cause: "Unbounded buffer growth in circular feature queues"
+    severity: 4
+    probability: 2
+    risk_before: 8
+    controls:
+      - "Fixed-capacity circular deques (maxlen=100) for all node buffers"
+      - "Periodic garbage collection and buffer bounding"
+      - "Automated soak tests in CI"
+    residual_risk: 2
+    acceptable: true
+
+  HAZ-018:
+    hazard: "Single sensor failure causing silent freeze"
+    cause: "Radar serial disconnection while CSI remains active"
+    severity: 4
+    probability: 2
+    risk_before: 8
+    controls:
+      - "Dynamic degradation to CSI_ONLY or RADAR_ONLY mode"
+      - "Non-blocking worker threads for sensor ingestion"
+      - "Watchdog alerts to dashboard on single-sensor loss"
+    residual_risk: 3
+    acceptable: true
+
+  HAZ-019:
+    hazard: "False alarm from oscillating ceiling fan or curtains"
+    cause: "Periodic micro-Doppler signatures mimicking human movement"
+    severity: 2
+    probability: 3
+    risk_before: 6
+    controls:
+      - "Energy-to-Peak Ratio (EPR) thresholding separating broad vs periodic"
+      - "Temporal attention weighting de-emphasizing steady-state periodicity"
+      - "Radar posture verification requirement"
+    residual_risk: 2
+    acceptable: true
+
+  HAZ-020:
+    hazard: "Fall at edge of radar Field of View (FOV)"
+    cause: "Person falls outside 120° azimuth or beyond 5m range"
+    severity: 4
+    probability: 2
+    risk_before: 8
+    controls:
+      - "Omnidirectional WiFi CSI coverage fills FOV gaps"
+      - "Degraded CSI_ONLY confirmation when radar detects no target"
+      - "Site survey recommendations for sensor placement in manual"
+    residual_risk: 3
+    acceptable: true
+
+  HAZ-021:
+    hazard: "Prolonged post-fall lying undetected"
+    cause: "Initial fall impact missed, subsequent motion minimal"
+    severity: 5
+    probability: 2
+    risk_before: 10
+    controls:
+      - "Stationary low-height radar target tracking (<0.4m for >10s)"
+      - "Quiescence detection post-anomaly"
+      - "High-priority medical alert escalation"
+    residual_risk: 4
+    acceptable: true
+
+  HAZ-022:
+    hazard: "Simultaneous power loss across hub and nodes"
+    cause: "Facility-wide blackout"
+    severity: 5
+    probability: 1
+    risk_before: 5
+    controls:
+      - "Support for uninterruptible power supply (UPS)"
+      - "System auto-restarts and verifies hash chain integrity upon boot"
+      - "SYSTEM_START audit log event generated upon power restoration"
+    residual_risk: 3
+    acceptable: true

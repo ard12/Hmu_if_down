@@ -7,7 +7,7 @@
 #   make lint          Run flake8 over hub/ and tests/
 #   make release TAG=v3.0.0   Tag and push a versioned release
 
-.PHONY: all test train docker lint release clean
+.PHONY: all test train docker lint release clean report
 
 PYTHON  ?= python
 PYTEST  ?= pytest
@@ -46,8 +46,16 @@ endif
 	git push origin $(TAG)
 	@echo "[OK] Released $(TAG)"
 
+# ── Clinical Performance Report ──────────────────────────────────────────────
+report:
+	$(PYTHON) docs/generate_clinical_report.py \
+	  --eval-report models/evaluation_report.json \
+	  --audit-db audits/audit.db \
+	  --output docs/CLINICAL_PERFORMANCE_REPORT.md
+
 # ── Clean ───────────────────────────────────────────────────────────────────
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find . -name "*.pyc" -delete 2>/dev/null || true
 	rm -rf .pytest_cache/ hub/__pycache__/ tests/__pycache__/
+

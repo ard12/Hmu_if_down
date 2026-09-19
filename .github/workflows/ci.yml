@@ -40,6 +40,18 @@ jobs:
         run: |
           pytest -v tests/ --tb=short
 
+      - name: Verify Traceability Matrix Coverage
+        run: |
+          python docs/generate_traceability.py --check --min-coverage 80
+
+      - name: Validate ISO 14971 Risk Analysis
+        run: |
+          python docs/validate_risk_analysis.py --fail-on-unacceptable
+
+      - name: Generate Clinical Performance Report
+        run: |
+          python docs/generate_clinical_report.py
+
       - name: Upload evaluation report
         if: matrix.python-version == '3.11'
         uses: actions/upload-artifact@v4

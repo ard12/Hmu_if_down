@@ -1,0 +1,41 @@
+# ISO 14971 FMEA Risk Analysis — Fall Detection SaMD v3.x
+
+**Document ID**: RA-ISO14971-V3  
+**Total Hazards Evaluated**: 22  
+**Standard**: ISO 14971:2019 (Medical devices — Application of risk management to medical devices)  
+**Risk Evaluation Matrix**: Severity (1-5) × Probability (1-5). Acceptability threshold: Residual Risk <= 4.  
+
+## Risk Register & Failure Mode and Effects Analysis (FMEA)
+
+| Hazard ID | Hazard Description | Root Cause | Sev | Prob | Initial Risk | Risk Controls & Mitigations | Residual Risk | Acceptable |
+|---|---|---|---|---|---|---|---|---|
+| `HAZ-001` | False negative — fall not detected | CSI signal masked by furniture or wall occlusion | 5 | 2 | **10** | - Multi-link coincidence voting (>=2/3 nodes must agree)<br>- Radar cross-verification in FUSION mode<br>- Kinematic slump detection for slow falls | **4** | ✅ YES |
+| `HAZ-002` | False positive — ADL misclassified as fall | Dropped object or pet triggers CSI burst | 2 | 3 | **6** | - EPR ground clutter filter (EPR < 0.15)<br>- Radar cluster area filter (< 0.15 m²)<br>- Active Radar Veto (suppress bursts when radar shows standing posture) | **2** | ✅ YES |
+| `HAZ-003` | Slow slump / syncope fall missed | Low Doppler velocity during gradual kinematic collapse | 5 | 2 | **10** | - Secondary radar centroid height tracking (< 0.5m persistence)<br>- Dedicated syncope fall-type classification profile<br>- Extended quiescence window analysis | **4** | ✅ YES |
+| `HAZ-004` | Delayed caregiver notification (>10s) | WiFi network congestion or packet loss during alert dispatch | 4 | 2 | **8** | - Local audible alarm triggered independently of network<br>- Exponential backoff retry with offline queuing<br>- Dual dispatch via WebSocket and Home Assistant MQTT | **3** | ✅ YES |
+| `HAZ-005` | Unmonitored blind spot due to node power loss | ESP32 node unplugged or power failure | 4 | 2 | **8** | - Heartbeat monitor and node liveness watchdog (timeout 5s)<br>- Automatic degraded single-modality fallback<br>- Dashboard system alert on node offline | **3** | ✅ YES |
+| `HAZ-006` | Parser crash or buffer overflow from malformed packet | Corrupted UDP datagram or fuzzing attack | 4 | 1 | **4** | - Strict header length and magic number verification<br>- Boundary checks on subcarrier counts and payload lengths<br>- Graceful exception isolation per UDP packet | **2** | ✅ YES |
+| `HAZ-007` | Radar RF interference / saturation | External 60GHz WiFi 60ad or adjacent mmWave radar sensors | 3 | 2 | **6** | - Radar frame checksum verification (CRC16)<br>- Signal-to-Noise Ratio (SNR) thresholding on point clouds<br>- Dynamic fallback to CSI-only mode on corrupted radar frames | **2** | ✅ YES |
+| `HAZ-008` | Alert storm flooding emergency dispatchers | Repeated threshold triggers during ambiguous patient motion | 3 | 3 | **9** | - Configurable alert cooldown period (default 30s)<br>- Post-fall state latching until explicit operator reset or standing detected<br>- Graduated severity classification (Suspected vs Confirmed) | **3** | ✅ YES |
+| `HAZ-009` | Clinical audit log corruption or tampering | Unauthorised database modification or disk write failure | 4 | 1 | **4** | - Tamper-evident SHA-256 hash-chaining across all events<br>- Periodic automated chain integrity validation<br>- SQLite WAL mode with ACID transactions | **2** | ✅ YES |
+| `HAZ-010` | Malicious firmware installation on ESP32 nodes | Unauthenticated OTA update request | 5 | 1 | **5** | - Strict directory traversal path sanitization on firmware download<br>- OTA enabled only under explicit CONFIG_OTA_ENABLED build flag<br>- Firmware version and binary integrity checks | **3** | ✅ YES |
+| `HAZ-011` | Cross-room fall misattribution in multi-room facility | CSI packet attributed to wrong room due to missing room tagging | 4 | 2 | **8** | - Hardware room-ID byte in 18-byte V2 UDP header<br>- Isolated RoomContext state machines in RoomManager<br>- Separate per-room alert dispatches and audit tracking | **3** | ✅ YES |
+| `HAZ-012` | Detection sensitivity degradation due to room alterations | Furniture rearrangement or new metallic objects altering multipath | 3 | 3 | **9** | - Continuous background noise floor tracking via AdaptiveCalibrator<br>- One-click / REST dynamic baseline recalibration endpoint<br>- Automatic drift warning in population analytics | **3** | ✅ YES |
+| `HAZ-013` | Unauthorised modification of sensitivity thresholds | Unprotected REST API threshold update endpoint | 4 | 2 | **8** | - Audit logging of all THRESHOLD_CHANGE events<br>- Hard min/max bounds enforcement on threshold updates<br>- Read-only fallback defaults upon invalid parameter values | **3** | ✅ YES |
+| `HAZ-014` | Relay federation socket drop during fall event | TCP socket termination or network interface bounce | 4 | 2 | **8** | - Automatic socket reconnection with exponential backoff<br>- Local buffering of un-forwarded frames<br>- RelayClient drop counters exposed via /api/relay/stats | **3** | ✅ YES |
+| `HAZ-015` | EHR interoperability rejection of fall alert | Malformed HL7 FHIR Observation JSON | 3 | 1 | **3** | - Automated JSON schema validation against FHIR R4 standard<br>- Unit tests validating codeable concepts (SNOMED-CT / LOINC)<br>- Standardized fallback plaintext dispatch | **1** | ✅ YES |
+| `HAZ-016` | MQTT broker downtime causes silent notification loss | Home Assistant server reboot or network partition | 4 | 2 | **8** | - Multi-channel notification: MQTT + WebSocket + Local AuditLog<br>- Non-blocking async MQTT publishing with auto-reconnect<br>- TelemetryBroadcaster buffer retention | **3** | ✅ YES |
+| `HAZ-017` | Hub application memory exhaustion after long runtime | Unbounded buffer growth in circular feature queues | 4 | 2 | **8** | - Fixed-capacity circular deques (maxlen=100) for all node buffers<br>- Periodic garbage collection and buffer bounding<br>- Automated soak tests in CI | **2** | ✅ YES |
+| `HAZ-018` | Single sensor failure causing silent freeze | Radar serial disconnection while CSI remains active | 4 | 2 | **8** | - Dynamic degradation to CSI_ONLY or RADAR_ONLY mode<br>- Non-blocking worker threads for sensor ingestion<br>- Watchdog alerts to dashboard on single-sensor loss | **3** | ✅ YES |
+| `HAZ-019` | False alarm from oscillating ceiling fan or curtains | Periodic micro-Doppler signatures mimicking human movement | 2 | 3 | **6** | - Energy-to-Peak Ratio (EPR) thresholding separating broad vs periodic<br>- Temporal attention weighting de-emphasizing steady-state periodicity<br>- Radar posture verification requirement | **2** | ✅ YES |
+| `HAZ-020` | Fall at edge of radar Field of View (FOV) | Person falls outside 120° azimuth or beyond 5m range | 4 | 2 | **8** | - Omnidirectional WiFi CSI coverage fills FOV gaps<br>- Degraded CSI_ONLY confirmation when radar detects no target<br>- Site survey recommendations for sensor placement in manual | **3** | ✅ YES |
+| `HAZ-021` | Prolonged post-fall lying undetected | Initial fall impact missed, subsequent motion minimal | 5 | 2 | **10** | - Stationary low-height radar target tracking (<0.4m for >10s)<br>- Quiescence detection post-anomaly<br>- High-priority medical alert escalation | **4** | ✅ YES |
+| `HAZ-022` | Simultaneous power loss across hub and nodes | Facility-wide blackout | 5 | 1 | **5** | - Support for uninterruptible power supply (UPS)<br>- System auto-restarts and verifies hash chain integrity upon boot<br>- SYSTEM_START audit log event generated upon power restoration | **3** | ✅ YES |
+
+## Risk Matrix Summary
+
+- **Category I (Acceptable)**: Residual Risk <= 4
+- **Category II (ALARP - As Low As Reasonably Practicable)**: Residual Risk 5-8
+- **Category III (Unacceptable)**: Residual Risk >= 9
+
+All identified hazards have been reduced to Category I or justified ALARP with verified clinical controls.

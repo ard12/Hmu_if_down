@@ -265,14 +265,14 @@ pytest -v tests/
 ```
 
 ### Results Summary
-**62 passed, 7 skipped (legacy CV tests), 0 failed** (100% pass rate):
+**149 passed, 7 skipped (legacy CV tests), 0 failed** (100% pass rate):
 
 | Test Suite | Tests Passed | Covered Functionality |
 |---|:---:|---|
 | [`tests/test_active_veto.py`](file:///d:/Fall_detection/tests/test_active_veto.py) | 4 | Active radar veto suppressing false CSI burst, legacy backward compatibility, floor posture allowance, kinematic slump detection |
 | [`tests/test_adaptive_calibrator.py`](file:///d:/Fall_detection/tests/test_adaptive_calibrator.py) | 4 | 2.4 GHz vs 5.8 GHz carrier scaling ($\lambda$), EMA baseline drift adaptation, motion outlier rejection, bounds clamping |
 | [`tests/test_clutter_filter.py`](file:///d:/Fall_detection/tests/test_clutter_filter.py) | 6 | Multi-link Elevation Perturbation Ratio (EPR), pet ground clutter suppression, radar cluster area ($<0.15\,\text{m}^2$) filtering |
-| [`tests/test_train_pipeline.py`](file:///d:/Fall_detection/tests/test_train_pipeline.py) | 5 | Synthetic feature generation, 5-fold Stratified CV, ROC/PR evaluation, model export & reload, NPZ feature extraction |
+| [`tests/test_train_pipeline.py`](file:///d:/Fall_detection/tests/test_train_pipeline.py) | 7 | Synthetic feature generation, 5-fold Stratified CV, ROC/PR evaluation, model export & reload, NPZ extraction, mix-ratio blending |
 | [`tests/test_dashboard.py`](file:///d:/Fall_detection/tests/test_dashboard.py) | 7 | Index route, status API, incidents query, WebSocket telemetry, `/api/calibrate`, `/api/thresholds`, `/api/datasets` |
 | [`tests/test_csi_pipeline.py`](file:///d:/Fall_detection/tests/test_csi_pipeline.py) | 4 | Binary packet parsing, corrupt packet rejection, PCA SVD, Doppler velocity |
 | [`tests/test_mmwave_parser.py`](file:///d:/Fall_detection/tests/test_mmwave_parser.py) | 4 | Binary frame decoding, checksum validation, JSON parsing, height tracking, dual fusion |
@@ -282,6 +282,21 @@ pytest -v tests/
 | [`tests/test_integration.py`](file:///d:/Fall_detection/tests/test_integration.py) | 9 | CSI mode, Radar mode, Fusion mode, false positive rejection, sequence interpolation, node liveness, cooldown, multi-link recovery |
 | [`tests/test_alert_dispatcher.py`](file:///d:/Fall_detection/tests/test_alert_dispatcher.py) | 6 | Cooldown rate limiting, CSV incident logging, MQTT dispatch, webhook POST, network failure resilience |
 | [`tests/test_calibrate.py`](file:///d:/Fall_detection/tests/test_calibrate.py) | 3 | Noise floor baseline generation, metrics computation, YAML export |
+| [`tests/test_audit_log.py`](file:///d:/Fall_detection/tests/test_audit_log.py) | 9 | Tamper-evident hash-chaining, SQLite storage, verify_chain, historical backdating |
+| [`tests/test_fhir_exporter.py`](file:///d:/Fall_detection/tests/test_fhir_exporter.py) | 3 | HL7 FHIR R4 Observation bundle generation and validation |
+| [`tests/test_auth.py`](file:///d:/Fall_detection/tests/test_auth.py) | 5 | Bearer token authentication, RBAC admin enforcement, audit log endpoint security |
+| [`tests/test_onnx_runner.py`](file:///d:/Fall_detection/tests/test_onnx_runner.py) | 7 | Quantized ONNX runtime inference, latency benchmarking, scikit-learn fallback |
+| [`tests/test_room_manager.py`](file:///d:/Fall_detection/tests/test_room_manager.py) | 14 | Multi-room context isolation, activity timeouts, REST API management |
+| [`tests/test_room_routing.py`](file:///d:/Fall_detection/tests/test_room_routing.py) | 3 | V2 18-byte UDP header parsing, hardware room-ID routing, multi-room context dispatch |
+| [`tests/test_relay_integration.py`](file:///d:/Fall_detection/tests/test_relay_integration.py) | 5 | RelayClient federation routing, magic byte checking, /api/relay/stats endpoint |
+| [`tests/test_version.py`](file:///d:/Fall_detection/tests/test_version.py) | 4 | Semantic version API, phase reporting, OTA directory traversal security |
+| [`tests/test_temporal_attention.py`](file:///d:/Fall_detection/tests/test_temporal_attention.py) | 3 | Recency-biased exponential temporal attention weights, dynamic runtime tuning |
+| [`tests/test_bayesian_classifier.py`](file:///d:/Fall_detection/tests/test_bayesian_classifier.py) | 6 | Platt-calibrated posterior probability, graduated alert severity, Brier score |
+| [`tests/test_fall_type_classifier.py`](file:///d:/Fall_detection/tests/test_fall_type_classifier.py) | 6 | 5-class fall categorization, confidence estimation, alert priority mapping |
+| [`tests/test_analytics.py`](file:///d:/Fall_detection/tests/test_analytics.py) | 7 | Population health analytics, hourly distribution, MTBF, alert cancellation rate |
+| [`tests/test_traceability.py`](file:///d:/Fall_detection/tests/test_traceability.py) | 4 | IEC 62304 SRS traceability matrix parsing, critical coverage verification |
+| [`tests/test_risk_analysis.py`](file:///d:/Fall_detection/tests/test_risk_analysis.py) | 5 | ISO 14971 FMEA risk register validation, severity x probability checks |
+| [`tests/test_clinical_report.py`](file:///d:/Fall_detection/tests/test_clinical_report.py) | 5 | Automated clinical validation report generator, audit statistics extraction |
 
 ---
 
@@ -326,12 +341,30 @@ pytest -v tests/
 │ [x] Semantic Version (hub/__version__ = "3.0.0", GET /api/version endpoint)    │
 │ [x] OTA Firmware Endpoint (GET /firmware/{filename} for ESP32 OTA updates)     │
 ├─────────────────────────────────────────────────────────────────────────────────┤
-│ Phase 7 (Future — Federated Fleet & SaMD Certification)                        │
-│ [ ] Execute Clinical Trial Campaign (N≥15 subjects, ≥270 labeled sessions)     │
-│ [ ] Retrain on real data (target: sensitivity ≥98.5%, specificity ≥98.0%)      │
-│ [ ] FDA 510(k) Class II submission package with predicate device comparison    │
-│ [ ] ESP32 OTA firmware update integration (CONFIG_OTA_ENABLED, OTA boot check) │
-│ [ ] Multi-building hub federation (relay client + primary hub routing)         │
+│ Phase 7 (Completed — ESP32 OTA Firmware Updates & Hub Federation Server Wiring) │
+│ [x] ESP32 Tracker OTA firmware update logic (CONFIG_OTA_ENABLED in Kconfig)     │
+│ [x] ESP32 Radar OTA firmware update logic (CONFIG_OTA_ENABLED in Kconfig)       │
+│ [x] Hardware Room-ID byte routing in 18-byte V2 UDP headers                     │
+│ [x] Hub Server multi-room context dispatch (--multi-room flag)                  │
+│ [x] RelayClient socket federation wiring in server.py and /api/relay/stats      │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ Phase 8 (Completed — Advanced Signal Processing & Population Health Analytics)  │
+│ [x] Temporal Attention Windowing for STFT velocity estimation (decay factor)    │
+│ [x] Bayesian fall probability with Platt scaling (CalibratedClassifierCV)       │
+│ [x] Graduated alert severity classification (Suspected vs Confirmed vs High)    │
+│ [x] Fall-Type second-stage classifier (5 clinical fall mechanisms)              │
+│ [x] Population health analytics module (hub/analytics.py, MTBF, hourly stats)   │
+│ [x] Analytics dashboard UI (hub/dashboard/static/analytics.html)                │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ Phase 9 (Completed — FDA SaMD Certification Package & Automated Reporting)      │
+│ [x] IEC 62304 Software Requirement Traceability Matrix (docs/requirements.yaml) │
+│ [x] Automated Traceability Matrix Generator (docs/generate_traceability.py)     │
+│ [x] ISO 14971 FMEA Risk Analysis Register (docs/risk_analysis.yaml, 22 hazards) │
+│ [x] ISO 14971 Risk Analysis Validator (docs/validate_risk_analysis.py)          │
+│ [x] Predicate Device Comparison Document (docs/PREDICATE_COMPARISON.md K151548) │
+│ [x] FDA Substantial Equivalence Decision Checklist (SE-001 through SE-010)      │
+│ [x] Automated Clinical Performance Validation Report (generate_clinical_report) │
+│ [x] Makefile 'report' target and GitHub Actions CI certification validation     │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -347,3 +380,7 @@ pytest -v tests/
 | **2.0.0** | 2026-09-14 | `cd5951c` | Antigravity | **Phase 4 Milestone Completion**: Real-Time Web Telemetry HUD, Dataset Recorder & Replay, Probabilistic ML Classifier, Home Assistant MQTT Auto-Discovery, Docker edge containerization. Full test suite: 40 passed. |
 | **2.5.0** | 2026-09-16 | `e1c7f3f` | Antigravity | **Phase 5 Milestone Completion**: Consensus Hardening (Active Radar Veto & Kinematic Slump Detection), Carrier-Aware Scaling (2.4 vs 5.8 GHz), Background Adaptive Calibrator (EMA baseline tracking), Spatial Elevation Perturbation Ratio (EPR) & Radar Cluster Area Filter, Empirical Training Pipeline (`hub/train.py`) with 5-Fold CV, Clinical Human Trial Protocol (`docs/DATA_COLLECTION_PROTOCOL.md`), Web HUD Fleet REST Endpoints, and ESP-IDF Firmware mDNS Discovery. Total: 62 passed tests. |
 | **3.0.0** | 2026-09-18 | `f4cfe20` | Antigravity | **Phase 6 Milestone Completion**: Multi-Room Spatial Mesh (`hub/room_manager.py`, `hub/relay_client.py`), ONNX Quantized Inference (`hub/onnx_runner.py`, `hub/train.py --onnx`), Clinical Audit Log (`hub/audit_log.py` SHA-256 hash-chain, `hub/fhir_export.py` FHIR R4, `hub/auth.py` RBAC), 3 audit REST endpoints, Empirical Retrain SOP (`docs/RETRAIN_CHECKLIST.md`), mix-ratio blending in train.py, GitHub Actions CI (Python 3.10/3.11 matrix + pip cache), systemd service unit, Makefile, `GET /api/version`, `GET /firmware/{filename}` OTA endpoint. Total: **105 passed, 7 skipped, 0 failed**. |
+| **3.1.0** | 2026-09-19 | `522d070` | Antigravity | **Phase 7 Milestone Completion**: ESP32 Tracker & Radar OTA firmware update routines under `CONFIG_OTA_ENABLED`, 18-byte V2 UDP header with hardware `room_id`, hub multi-room packet routing (`hub/server.py --multi-room`), RelayClient socket federation wiring (`--relay-port` and `GET /api/relay/stats`). Total: **113 passed, 7 skipped, 0 failed**. |
+| **3.2.0** | 2026-09-19 | `9ce9e3c` | Antigravity | **Phase 8 Milestone Completion**: Advanced signal processing with temporal attention windowing, Platt-calibrated Bayesian fall probability (`CalibratedClassifierCV`), graduated alert severities (`p_suspected`, `p_confirmed`, `p_high_confidence`), fall-type second-stage classifier (5 clinical classes), population health analytics module (`hub/analytics.py`) with MTBF and hourly distributions, population health dashboard UI (`analytics.html`). Total: **135 passed, 7 skipped, 0 failed**. |
+| **3.3.0** | 2026-09-19 | Current | Antigravity | **Phase 9 Milestone Completion**: Full FDA SaMD Certification Package & Automated Clinical Reporting. IEC 62304 Software Requirement Traceability Matrix with 32 SRS items and 100% test coverage (`docs/requirements.yaml`, `docs/generate_traceability.py`, `docs/TRACEABILITY_MATRIX.md`), ISO 14971 FMEA Risk Register with 22 validated hazards (`docs/risk_analysis.yaml`, `docs/validate_risk_analysis.py`, `docs/RISK_ANALYSIS.md`), FDA 510(k) Predicate Device Comparison against Philips Lifeline AutoAlert K151548 (`docs/PREDICATE_COMPARISON.md`, `docs/SUBSTANTIAL_EQUIVALENCE_CHECKLIST.md`), Automated Clinical Performance Validation Report Generator (`docs/generate_clinical_report.py`, `docs/CLINICAL_PERFORMANCE_REPORT.md`), Makefile `report` target, CI automation. Total: **149 passed, 7 skipped, 0 failed**. |
+

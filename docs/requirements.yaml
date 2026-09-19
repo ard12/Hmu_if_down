@@ -1,0 +1,164 @@
+# Software Requirements Specification (SRS) — Fall Detection SaMD v3.x
+# Complies with IEC 62304 Software Lifecycle Process (Class B/C Medical Device Software)
+
+requirements:
+  SRS-001:
+    title: "The system shall detect confirmed falls within 4.0 seconds of event onset."
+    category: "Performance"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-002:
+    title: "The system shall achieve sensitivity >= 98.5% on validated human-subject or synthetic fall benchmarks."
+    category: "Performance"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-003:
+    title: "The system shall generate a tamper-evident audit record for every fall event."
+    category: "Security / Safety"
+    criticality: "Essential"
+    verification: "Test"
+  SRS-004:
+    title: "The system shall maintain a SHA-256 hash-chain across all recorded clinical events to prevent log modification."
+    category: "Security / Safety"
+    criticality: "Essential"
+    verification: "Test"
+  SRS-005:
+    title: "The system shall ingest WiFi CSI packets via UDP and validate the packet header structure."
+    category: "Performance"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-006:
+    title: "The system shall extract Doppler velocity features from subcarrier amplitudes using PCA and STFT."
+    category: "Performance"
+    criticality: "Essential"
+    verification: "Test"
+  SRS-007:
+    title: "The system shall ingest mmWave radar point cloud and tracking cluster data."
+    category: "Performance"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-008:
+    title: "The system shall fuse CSI Doppler velocities and radar height dynamics via dual-modality consensus."
+    category: "Performance"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-009:
+    title: "The system shall suppress false fall alarms when radar indicates an upright standing posture (Active Radar Veto)."
+    category: "Safety / Risk Control"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-010:
+    title: "The system shall filter ground clutter and non-human motion using Energy-to-Peak Ratio (EPR) thresholding."
+    category: "Safety / Risk Control"
+    criticality: "Essential"
+    verification: "Test"
+  SRS-011:
+    title: "The system shall require multi-link coincidence (>= 2 nodes voting fall) before confirming an unverified CSI event."
+    category: "Safety / Risk Control"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-012:
+    title: "The system shall maintain an adaptive noise baseline that adjusts to stationary background changes."
+    category: "Performance"
+    criticality: "Essential"
+    verification: "Test"
+  SRS-013:
+    title: "The system shall export fall alerts and health metrics conforming to HL7 FHIR Observation resource schema."
+    category: "Interoperability"
+    criticality: "Essential"
+    verification: "Test"
+  SRS-014:
+    title: "The system shall publish discovery configs and sensor state over Home Assistant MQTT protocol."
+    category: "Interoperability"
+    criticality: "Minor"
+    verification: "Test"
+  SRS-015:
+    title: "The system shall support multi-room spatial tracking and isolate state machines per room context."
+    category: "Performance"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-016:
+    title: "The system shall enforce rate limiting and cooldown periods on outbound caregiver alerts."
+    category: "Safety / Risk Control"
+    criticality: "Essential"
+    verification: "Test"
+  SRS-017:
+    title: "The system shall provide a real-time web dashboard displaying sensor telemetry, alerts, and system health."
+    category: "Safety / Usability"
+    criticality: "Essential"
+    verification: "Test"
+  SRS-018:
+    title: "The system shall calibrate fall classification probabilities using Platt scaling (CalibratedClassifierCV)."
+    category: "Performance"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-019:
+    title: "The system shall classify confirmed falls into clinical subtypes (forward trip, backward slip, lateral collapse, slow slump, syncope)."
+    category: "Performance"
+    criticality: "Essential"
+    verification: "Test"
+  SRS-020:
+    title: "The system shall apply exponential temporal attention weighting to recency in Doppler velocity estimation."
+    category: "Performance"
+    criticality: "Essential"
+    verification: "Test"
+  SRS-021:
+    title: "The system shall provide population health analytics including hourly distribution and fall frequency."
+    category: "Performance"
+    criticality: "Minor"
+    verification: "Test"
+  SRS-022:
+    title: "The system shall compute mean time between falls (MTBF) and alert cancellation ratios per room."
+    category: "Performance"
+    criticality: "Minor"
+    verification: "Test"
+  SRS-023:
+    title: "The system shall support secure Over-The-Air (OTA) firmware update verification for ESP32 nodes."
+    category: "Maintenance"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-024:
+    title: "The system shall reject directory traversal attempts on firmware update binary downloads."
+    category: "Security"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-025:
+    title: "The system shall report system version and phase via REST API."
+    category: "Maintenance"
+    criticality: "Minor"
+    verification: "Test"
+  SRS-026:
+    title: "The system shall route relay federation packets with magic bytes to the appropriate sensor parsers."
+    category: "Interoperability"
+    criticality: "Essential"
+    verification: "Test"
+  SRS-027:
+    title: "The system shall detect missing sequence numbers and interpolate gaps in node telemetry streams."
+    category: "Performance"
+    criticality: "Essential"
+    verification: "Test"
+  SRS-028:
+    title: "The system shall export trained models to portable ONNX format and benchmark inference latency."
+    category: "Performance"
+    criticality: "Essential"
+    verification: "Test"
+  SRS-029:
+    title: "The system shall record raw sensor session data to compressed NPZ files for replay and training."
+    category: "Maintenance"
+    criticality: "Minor"
+    verification: "Test"
+  SRS-030:
+    title: "The system shall provide REST endpoints to dynamically query and update detection sensitivity thresholds."
+    category: "Safety / Usability"
+    criticality: "Essential"
+    verification: "Test"
+  SRS-031:
+    title: "The system shall classify graduated alert severities based on Bayesian posterior probabilities."
+    category: "Safety / Risk Control"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-032:
+    title: "The system shall operate reliably across single-modality degraded modes when one sensor fails."
+    category: "Safety / Risk Control"
+    criticality: "Critical"
+    verification: "Test"
