@@ -3,7 +3,7 @@
 from collections import deque
 from enum import Enum
 import time
-from typing import Deque, List, Optional, Tuple
+from typing import Any, Deque, List, Optional, Tuple
 
 from .alert_dispatcher import AlertDispatcher
 from .csi_pipeline.multi_link_fusion import CSIFallState, MultiLinkFusionEngine
@@ -35,6 +35,7 @@ class DualFusionEngine:
         ml_weight: float = 0.5,
         enable_radar_veto: bool = False,
         enable_slump_detection: bool = True,
+        fall_type_classifier: Optional[Any] = None,
     ):
         self.mode = mode
         self.alert = alert_dispatcher or AlertDispatcher()
@@ -42,6 +43,7 @@ class DualFusionEngine:
         self.ml_weight = ml_weight
         self.enable_radar_veto = enable_radar_veto
         self.enable_slump_detection = enable_slump_detection
+        self.fall_type_classifier = fall_type_classifier
         self.veto_timeout_sec = 5.0
 
         self.last_radar: Optional[RadarTelemetry] = None
@@ -49,12 +51,20 @@ class DualFusionEngine:
         self.last_csi_time: float = 0.0
         self.last_csi_state: CSIFallState = CSIFallState.NORMAL
         self.last_ml_prob: float = 0.0
+        self.last_fall_type: Optional[str] = None
+        self.last_fall_type_confidence: float = 0.0
         self.unified_state: UnifiedFallState = UnifiedFallState.NORMAL
 
         self.radar_height_history: Deque[Tuple[float, float, RadarPosture]] = deque(maxlen=60)
         self.veto_count: int = 0
         self.last_veto_reason: str = ""
         self.slump_detected: bool = False
+
+        # Bayesian probability thresholds & graduated severity
+        self.p_suspected: float = 0.55
+        self.p_confirmed: float = 0.80
+        self.p_high_confidence: float = 0.95
+        self.high_confidence: bool = False
 
     def update_csi(
         self,
@@ -68,6 +78,8 @@ class DualFusionEngine:
         self.last_csi_state = self.csi_engine.register_feature(features, current_time)
         if ml_prob is not None:
             self.last_ml_prob = float(ml_prob)
+        elif hasattr(features, "ml_fall_probability") and features.ml_fall_probability > 0:
+            self.last_ml_prob = float(features.ml_fall_probability)
         return self._evaluate_consensus(current_time=now)
 
     def update_radar(self, telemetry: RadarTelemetry, current_time: Optional[float] = None) -> UnifiedFallState:
@@ -107,13 +119,14 @@ class DualFusionEngine:
     def _evaluate_consensus(self, current_time: Optional[float] = None) -> UnifiedFallState:
         now = current_time if current_time is not None else (self.last_csi_time or self.last_radar_time or time.time())
         prev_state = self.unified_state
+        self.high_confidence = (self.last_ml_prob >= self.p_high_confidence)
 
         if self.mode == OperatingMode.CSI_ONLY:
             if self.last_csi_state == CSIFallState.CONFIRMED_FALL or (
-                self.last_csi_state == CSIFallState.SUSPECTED_FALL and self.last_ml_prob >= 0.85
-            ):
+                self.last_csi_state == CSIFallState.SUSPECTED_FALL and self.last_ml_prob >= self.p_confirmed
+            ) or (self.last_ml_prob >= self.p_high_confidence):
                 self.unified_state = UnifiedFallState.CONFIRMED
-            elif self.last_csi_state == CSIFallState.SUSPECTED_FALL or self.last_ml_prob >= 0.70:
+            elif self.last_csi_state == CSIFallState.SUSPECTED_FALL or self.last_ml_prob >= self.p_suspected:
                 self.unified_state = UnifiedFallState.SUSPECTED
             elif self.last_csi_state == CSIFallState.RECOVERED:
                 self.unified_state = UnifiedFallState.RECOVERED
@@ -150,7 +163,7 @@ class DualFusionEngine:
             csi_confirmed = (self.last_csi_state == CSIFallState.CONFIRMED_FALL)
 
             # Condition 3: ML classifier predicts high fall probability
-            ml_confirmed = (self.last_ml_prob >= 0.85)
+            ml_confirmed = (self.last_ml_prob >= self.p_confirmed)
 
             # Condition 4: Kinematic Slump
             slump_confirmed = self.slump_detected
@@ -175,10 +188,25 @@ class DualFusionEngine:
         # Trigger alert on transition to CONFIRMED
         if self.unified_state == UnifiedFallState.CONFIRMED and prev_state != UnifiedFallState.CONFIRMED:
             details = f"Mode={self.mode.value}, CSI={self.last_csi_state.value}"
+            if self.high_confidence:
+                details += ", HighConfidence=True"
             if self.slump_detected:
                 details += ", Slump=True"
             if self.last_radar:
                 details += f", RadarHeight={self.last_radar.target_height_m:.2f}m"
+
+            if self.fall_type_classifier is not None:
+                dwell = float(self.last_radar.dwell_time_sec) if self.last_radar else 0.0
+                peak_vel = float(self.last_radar.target_height_m) if self.last_radar else 2.5
+                feat_11d = [3.0, 10.0, 25.0, 30.0, 4.5, 2.5, 8.0, 2.0, 5.0, dwell, peak_vel]
+                try:
+                    ft, conf = self.fall_type_classifier.predict(feat_11d)
+                    self.last_fall_type = ft
+                    self.last_fall_type_confidence = conf
+                    details += f", FallType={ft} ({conf:.0%})"
+                except Exception:
+                    pass
+
             self.alert.trigger_alarm(self.mode.value, "FALL_CONFIRMED", details)
 
         return self.unified_state

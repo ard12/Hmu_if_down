@@ -101,6 +101,7 @@ class AuditLog:
         event_type: str,
         payload: Optional[Dict[str, Any]] = None,
         room_id: Optional[int] = None,
+        timestamp_utc: Optional[str] = None,
     ) -> int:
         """Append a new event to the hash-chained audit log.
 
@@ -108,6 +109,7 @@ class AuditLog:
             event_type: One of the EVENT_TYPES constants.
             payload: Arbitrary JSON-serialisable metadata dict.
             room_id: Optional room identifier for multi-room deployments.
+            timestamp_utc: Optional ISO-8601 UTC timestamp (defaults to current time).
 
         Returns:
             The inserted row id.
@@ -119,7 +121,8 @@ class AuditLog:
             raise ValueError(f"Unknown event_type: {event_type!r}. Must be one of {EVENT_TYPES}")
 
         payload = payload or {}
-        timestamp_utc = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        if timestamp_utc is None:
+            timestamp_utc = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         payload_json = json.dumps(payload, separators=(",", ":"), sort_keys=True)
 
         with self._lock:

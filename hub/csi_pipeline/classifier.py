@@ -18,6 +18,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import numpy as np
 from scipy import signal
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import HistGradientBoostingClassifier
 
 from hub.csi_pipeline.pca_features import CSIDynamicFeatures
@@ -142,6 +143,11 @@ class FallClassifier:
         else:
             self._init_baseline_model()
 
+    @property
+    def is_calibrated(self) -> bool:
+        """Return True if model employs Platt probability calibration."""
+        return isinstance(self.model, CalibratedClassifierCV)
+
     def _init_baseline_model(self):
         """Train on a robust synthetic distribution of typical falls vs ADLs (Activities of Daily Living)."""
         np.random.seed(42)
@@ -177,11 +183,26 @@ class FallClassifier:
         y = np.array([0] * n_adl + [1] * n_fall)
 
         self.model.fit(X, y)
+        calibrated = CalibratedClassifierCV(self.model, method="sigmoid", cv=3)
+        calibrated.fit(X, y)
+        self.model = calibrated
         self.is_fitted = True
 
-    def fit(self, X: np.ndarray, y: np.ndarray):
+    def fit(self, X: np.ndarray, y: np.ndarray, calibrate: bool = True):
         """Train the classifier on empirical feature matrices."""
-        self.model.fit(X, y)
+        base_model = HistGradientBoostingClassifier(
+            max_iter=100,
+            learning_rate=0.08,
+            max_depth=5,
+            random_state=42,
+        )
+        if calibrate:
+            calibrated = CalibratedClassifierCV(base_model, method="sigmoid", cv=3)
+            calibrated.fit(X, y)
+            self.model = calibrated
+        else:
+            base_model.fit(X, y)
+            self.model = base_model
         self.is_fitted = True
 
     def predict_proba(self, features: Union[MLFeatures, np.ndarray]) -> float:

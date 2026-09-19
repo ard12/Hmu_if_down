@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fall Detection — Population Health Analytics</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .kpi-card {
+            background: #1e222d;
+            border: 1px solid #2d3343;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #38bdf8;
+            margin: 8px 0 4px;
+        }
+        .kpi-label {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .chart-container {
+            background: #1e222d;
+            border: 1px solid #2d3343;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        canvas {
+            width: 100%;
+            height: 260px;
+            display: block;
+        }
+        .risk-banner {
+            background: rgba(239, 68, 68, 0.15);
+            border-left: 4px solid #ef4444;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <header class="top-nav">
+        <h1>Population Health & Fall Trend Analytics</h1>
+        <div class="nav-links">
+            <a href="/" style="color: #38bdf8; text-decoration: none; font-size: 0.9rem;">← Back to Live HUD</a>
+        </div>
+    </header>
+
+    <main style="padding: 24px; max-width: 1200px; margin: 0 auto;">
+        <!-- KPI Row -->
+        <div class="analytics-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Total Falls (30d)</div>
+                <div class="kpi-value" id="total-falls">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Daily Average</div>
+                <div class="kpi-value" id="daily-avg">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">MTBF (Hours)</div>
+                <div class="kpi-value" id="mtbf">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Cancellation Rate</div>
+                <div class="kpi-value" id="cancellation-rate">-</div>
+            </div>
+        </div>
+
+        <!-- High Risk Windows Alerts -->
+        <div id="risk-alerts"></div>
+
+        <!-- 24-Hour Distribution Canvas Chart -->
+        <div class="chart-container">
+            <h2 style="font-size: 1.1rem; color: #f8fafc; margin-bottom: 16px;">24-Hour Fall Incidence Distribution</h2>
+            <canvas id="hourly-chart"></canvas>
+        </div>
+
+        <!-- Fall Types Phenotype Table -->
+        <div class="chart-container">
+            <h2 style="font-size: 1.1rem; color: #f8fafc; margin-bottom: 16px;">Fall Phenotype Breakdown</h2>
+            <table style="width: 100%; border-collapse: collapse; text-align: left;" id="phenotype-table">
+                <thead>
+                    <tr style="border-bottom: 1px solid #334155; color: #94a3b8; font-size: 0.85rem;">
+                        <th style="padding: 8px;">Phenotype</th>
+                        <th style="padding: 8px;">Occurrences</th>
+                        <th style="padding: 8px;">Clinical Priority</th>
+                    </tr>
+                </thead>
+                <tbody id="phenotype-body" style="color: #cbd5e1; font-size: 0.9rem;">
+                    <tr><td colspan="3" style="padding: 12px; text-align: center; color: #64748b;">Loading telemetry...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        async function fetchAnalytics() {
+            try {
+                const resSummary = await fetch('/api/analytics/summary?days=30');
+                const data = await resSummary.json();
+
+                // Update KPIs
+                const summary = data.summary || {};
+                document.getElementById('total-falls').innerText = summary.total_falls ?? 0;
+                document.getElementById('daily-avg').innerText = summary.daily_average ?? '0.0';
+
+                const mtbfSec = data.mtbf_seconds;
+                document.getElementById('mtbf').innerText = mtbfSec ? (mtbfSec / 3600).toFixed(1) + 'h' : 'N/A';
+                document.getElementById('cancellation-rate').innerText = ((data.cancellation_rate || 0) * 100).toFixed(1) + '%';
+
+                // High Risk Alerts
+                const riskDiv = document.getElementById('risk-alerts');
+                riskDiv.innerHTML = '';
+                if (data.high_risk_windows && data.high_risk_windows.length > 0) {
+                    data.high_risk_windows.forEach(rw => {
+                        const b = document.createElement('div');
+                        b.className = 'risk-banner';
+                        b.innerHTML = `<strong>⚠️ ${rw.risk_level} FALL RISK WINDOW:</strong> Hour ${rw.hour}:00-${rw.hour + 1}:00 has registered ${rw.fall_count} falls in the last 7 days.`;
+                        riskDiv.appendChild(b);
+                    });
+                }
+
+                // Render Phenotype Table
+                const pBody = document.getElementById('phenotype-body');
+                pBody.innerHTML = '';
+                const types = data.fall_types || {};
+                const priorities = {
+                    'forward_trip': 'HIGH', 'backward_slip': 'HIGH',
+                    'lateral_collapse': 'MEDIUM', 'slow_slump': 'MEDIUM', 'syncope_drop': 'HIGH'
+                };
+                if (Object.keys(types).length === 0) {
+                    pBody.innerHTML = '<tr><td colspan="3" style="padding: 12px; text-align: center; color: #64748b;">No confirmed fall events recorded in audit log.</td></tr>';
+                } else {
+                    for (const [k, count] of Object.entries(types)) {
+                        const tr = document.createElement('tr');
+                        tr.style.borderBottom = '1px solid #242b3d';
+                        const prio = priorities[k] || 'STANDARD';
+                        const color = prio === 'HIGH' ? '#ef4444' : '#f59e0b';
+                        tr.innerHTML = `
+                            <td style="padding: 10px 8px; font-weight: 600;">${k.replace('_', ' ').toUpperCase()}</td>
+                            <td style="padding: 10px 8px;">${count}</td>
+                            <td style="padding: 10px 8px; color: ${color}; font-weight: 600;">${prio}</td>
+                        `;
+                        pBody.appendChild(tr);
+                    }
+                }
+
+                // Render Hourly Canvas Chart
+                drawHourlyChart(data.hourly_distribution || []);
+            } catch (err) {
+                console.error('Failed to load analytics:', err);
+            }
+        }
+
+        function drawHourlyChart(hourlyData) {
+            const canvas = document.getElementById('hourly-chart');
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = canvas.clientWidth * dpr;
+            canvas.height = 260 * dpr;
+            ctx.scale(dpr, dpr);
+
+            const w = canvas.clientWidth;
+            const h = 260;
+            ctx.clearRect(0, 0, w, h);
+
+            const padding = { top: 20, right: 20, bottom: 40, left: 40 };
+            const chartW = w - padding.left - padding.right;
+            const chartH = h - padding.top - padding.bottom;
+
+            const counts = hourlyData.map(d => d.count);
+            const maxVal = Math.max(...counts, 4);
+
+            const barW = chartW / 24;
+
+            // Grid lines
+            ctx.strokeStyle = '#2d3343';
+            ctx.fillStyle = '#64748b';
+            ctx.font = '10px monospace';
+            ctx.textAlign = 'right';
+
+            for (let i = 0; i <= 4; i++) {
+                const y = padding.top + (chartH / 4) * i;
+                const val = Math.round(maxVal - (maxVal / 4) * i);
+                ctx.beginPath();
+                ctx.moveTo(padding.left, y);
+                ctx.lineTo(w - padding.right, y);
+                ctx.stroke();
+                ctx.fillText(val, padding.left - 6, y + 3);
+            }
+
+            // Bars
+            ctx.textAlign = 'center';
+            hourlyData.forEach((item, idx) => {
+                const barH = (item.count / maxVal) * chartH;
+                const x = padding.left + idx * barW + 2;
+                const y = padding.top + chartH - barH;
+                const barWidth = Math.max(barW - 4, 4);
+
+                ctx.fillStyle = item.count > 0 ? '#38bdf8' : '#334155';
+                ctx.fillRect(x, y, barWidth, barH);
+
+                if (idx % 3 === 0) {
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.fillText(item.hour + 'h', x + barWidth / 2, h - 15);
+                }
+            });
+        }
+
+        fetchAnalytics();
+        setInterval(fetchAnalytics, 30000);
+    </script>
+</body>
+</html>

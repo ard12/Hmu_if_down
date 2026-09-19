@@ -49,6 +49,9 @@ class TelemetryBroadcaster:
         self.room_manager = None
         self.relay_client = None
         self.audit_log = None
+        self.analytics = None
+        self.latest_fall_type: Optional[str] = None
+        self.latest_fall_type_conf: float = 0.0
         self.thresholds: Dict[str, Any] = {
             "motionless_variance_threshold": 0.08,
             "velocity_threshold_mps": 1.8,
@@ -180,6 +183,8 @@ async def get_status():
     return {
         "state": broadcaster.latest_state,
         "target_height_m": broadcaster.latest_height,
+        "fall_type": broadcaster.latest_fall_type,
+        "fall_type_confidence": broadcaster.latest_fall_type_conf,
         "nodes": nodes,
         "active_clients": len(broadcaster.active_connections),
         "timestamp": now,
@@ -247,6 +252,12 @@ async def post_thresholds(payload: Dict[str, Any]):
             broadcaster.fusion_engine.enable_radar_veto = bool(v)
         elif k == "enable_pet_filter" and broadcaster.csi_engine:
             broadcaster.csi_engine.enable_pet_filter = bool(v)
+        elif k == "temporal_attention" and broadcaster.csi_engine:
+            if hasattr(broadcaster.csi_engine, "pca_extractor"):
+                broadcaster.csi_engine.pca_extractor.set_attention(enabled=bool(v))
+        elif k == "attention_decay" and broadcaster.csi_engine:
+            if hasattr(broadcaster.csi_engine, "pca_extractor"):
+                broadcaster.csi_engine.pca_extractor.set_attention(decay=float(v))
     return {
         "status": "success",
         "message": "Thresholds updated",
@@ -457,6 +468,55 @@ async def get_audit_verify():
     if not intact:
         result["first_broken_id"] = broken_id
     return result
+
+
+# ---------------------------------------------------------------------------
+# Population Health Analytics Endpoints (Milestone 8.4)
+# ---------------------------------------------------------------------------
+
+def _get_analytics():
+    if broadcaster.analytics is not None:
+        return broadcaster.analytics
+    if broadcaster.audit_log is not None:
+        from hub.analytics import FallAnalytics
+        broadcaster.analytics = FallAnalytics(audit_log=broadcaster.audit_log)
+        return broadcaster.analytics
+    return None
+
+
+@app.get("/api/analytics/summary")
+async def get_analytics_summary(room_id: Optional[int] = None, days: int = 30):
+    """Return comprehensive population health and fall trend analytics."""
+    analytics = _get_analytics()
+    if analytics is None:
+        return {
+            "summary": {"total_falls": 0, "days_analyzed": days, "daily_average": 0.0, "by_room": {}},
+            "hourly_distribution": [{"hour": h, "count": 0} for h in range(24)],
+            "high_risk_windows": [],
+            "fall_types": {},
+            "mtbf_seconds": None,
+            "cancellation_rate": 0.0,
+            "note": "AuditLog not initialised",
+        }
+    return analytics.full_report(room_id=room_id, days=days)
+
+
+@app.get("/api/analytics/hourly")
+async def get_analytics_hourly(room_id: Optional[int] = None, days: int = 30):
+    """Return 24-bucket histogram of falls by hour of day."""
+    analytics = _get_analytics()
+    if analytics is None:
+        return [{"hour": h, "count": 0} for h in range(24)]
+    return analytics.hourly_distribution(room_id=room_id, days=days)
+
+
+@app.get("/api/analytics/risk-windows")
+async def get_analytics_risk_windows(threshold: int = 2, window_days: int = 7):
+    """Identify high-risk time windows based on recent fall frequency."""
+    analytics = _get_analytics()
+    if analytics is None:
+        return []
+    return analytics.high_risk_windows(threshold=threshold, window_days=window_days)
 
 
 @app.websocket("/ws/telemetry")

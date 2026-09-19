@@ -91,6 +91,11 @@ def parse_args() -> argparse.Namespace:
         default=0.7,
         help="Fraction of real-data samples when blending real + synthetic (default: 0.7)",
     )
+    parser.add_argument(
+        "--fall-type",
+        action="store_true",
+        help="Train second-stage FallTypeClassifier model on synthetic fall phenotypes",
+    )
     return parser.parse_args()
 
 
@@ -323,11 +328,29 @@ def train_and_export(
     )
     final_model.fit(X, y)
 
+    from sklearn.calibration import CalibratedClassifierCV
+    from sklearn.metrics import brier_score_loss
+
+    # Calibrate probability using Platt scaling (sigmoid)
+    calibrated_model = CalibratedClassifierCV(final_model, method="sigmoid", cv=3)
+    calibrated_model.fit(X, y)
+
+    probas = calibrated_model.predict_proba(X)[:, 1]
+    brier = float(brier_score_loss(y, probas))
+    cv_report["brier_score"] = round(brier, 4)
+    cv_report["calibrated"] = True
+
     # Persist model
     output_model_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_model_path, "wb") as f:
         pickle.dump(final_model, f)
     print(f"[OK] Trained production model exported to: {output_model_path}")
+
+    # Persist calibrated model
+    calibrated_path = output_model_path.with_name(output_model_path.stem + "_calibrated.pkl")
+    with open(calibrated_path, "wb") as f:
+        pickle.dump(calibrated_model, f)
+    print(f"[OK] Calibrated model exported to: {calibrated_path}")
 
     # Persist report
     if report_file_path:
@@ -470,6 +493,19 @@ def main():
             with open(report_file, "w", encoding="utf-8") as f:
                 json.dump(existing, f, indent=2)
             print(f"[OK] ONNX metadata merged into: {report_file}")
+
+    if args.fall_type:
+        from hub.fall_type_classifier import FallTypeClassifier
+        print("\n[FALL-TYPE] Training second-stage FallTypeClassifier...")
+        ft_clf = FallTypeClassifier()
+        X_ft, y_ft = ft_clf.generate_synthetic_features(n_per_class=100)
+        ft_model_path = output_dir / "fall_type_classifier.pkl"
+        ft_report = ft_clf.train_and_export(X_ft, y_ft, output_path=ft_model_path)
+        ft_report_file = output_dir / "fall_type_classifier_report.json"
+        with open(ft_report_file, "w", encoding="utf-8") as f:
+            json.dump(ft_report, f, indent=2)
+        print(f"[OK] Fall-type classifier exported to: {ft_model_path}")
+        print(f"[OK] Fall-type report saved to: {ft_report_file}")
 
 
 if __name__ == "__main__":

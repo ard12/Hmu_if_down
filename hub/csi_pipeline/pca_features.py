@@ -14,6 +14,7 @@ class CSIDynamicFeatures:
     moving_variance: float
     is_velocity_burst: bool
     pc1_signal: np.ndarray
+    ml_fall_probability: float = 0.0
 
 
 class CSIPCAExtractor:
@@ -25,12 +26,23 @@ class CSIPCAExtractor:
         carrier_freq_hz: float = 2.437e9,  # Wi-Fi Channel 6 (2.437 GHz)
         velocity_threshold_mps: float = 1.8,
         energy_surge_threshold: float = 3.0,
+        temporal_attention: bool = True,
+        attention_decay: float = 2.0,
     ):
         self.fs = sampling_rate_hz
         self.c = 3.0e8
         self.wavelength = self.c / carrier_freq_hz  # ~0.123 m
         self.vel_threshold = velocity_threshold_mps
         self.energy_threshold = energy_surge_threshold
+        self.temporal_attention = temporal_attention
+        self.attention_decay = attention_decay
+
+    def set_attention(self, enabled: Optional[bool] = None, decay: Optional[float] = None):
+        """Configure temporal attention recency windowing parameters."""
+        if enabled is not None:
+            self.temporal_attention = bool(enabled)
+        if decay is not None:
+            self.attention_decay = float(decay)
 
     def set_carrier_frequency(self, freq_or_channel: float):
         """Configure carrier wavelength dynamically for 2.4 GHz vs 5.8 GHz Wi-Fi channels."""
@@ -123,7 +135,15 @@ class CSIPCAExtractor:
         pcs = self.compute_pca(filtered_data, n_components=2)
         pc1 = pcs[:, 0] if pcs.shape[1] > 0 else np.zeros(filtered_data.shape[0])
 
-        vel_mps, surge_ratio = self.estimate_velocity(pc1)
+        if self.temporal_attention and pc1.shape[0] > 1:
+            T = pc1.shape[0]
+            t = np.arange(T, dtype=np.float32)
+            weights = np.exp(-self.attention_decay * (T - 1 - t) / max(T - 1, 1))
+            pc1_weighted = pc1 * weights
+        else:
+            pc1_weighted = pc1
+
+        vel_mps, surge_ratio = self.estimate_velocity(pc1_weighted)
         variance = float(np.var(pc1[-30:])) if len(pc1) >= 30 else float(np.var(pc1))
 
         is_burst = (vel_mps >= self.vel_threshold) and (surge_ratio >= self.energy_threshold)
@@ -135,4 +155,5 @@ class CSIPCAExtractor:
             moving_variance=variance,
             is_velocity_burst=is_burst,
             pc1_signal=pc1,
+            ml_fall_probability=0.0,
         )
