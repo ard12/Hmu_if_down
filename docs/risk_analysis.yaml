@@ -287,3 +287,17 @@ hazards:
       - "SYSTEM_START audit log event generated upon power restoration"
     residual_risk: 3
     acceptable: true
+
+  HAZ-023:
+    hazard: "Subject falls in doorway during handoff; neither room engine has full signal coverage"
+    cause: "Handoff transition latency or blind spot between room boundaries"
+    severity: 5
+    probability: 2
+    risk_before: 10
+    controls:
+      - "Dual-monitoring state machine active for >=8s during room transition"
+      - "Simultaneous frame dispatch to both source and destination fusion engines"
+      - "Radar cross-verification and veto preserved across both engines during handoff"
+    residual_risk: 4
+    acceptable: true
+

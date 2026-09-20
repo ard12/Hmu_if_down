@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fall Detection — ESP-MESH & Room Handoff</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+        .top-nav h1 {
+            font-size: 1.5rem;
+            margin: 0;
+            color: #38bdf8;
+        }
+        .mesh-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .kpi-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        .kpi-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #38bdf8;
+            margin: 8px 0 4px;
+        }
+        .kpi-label {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .visualizer-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        @media (max-width: 900px) {
+            .visualizer-container {
+                grid-template-columns: 1fr;
+            }
+        }
+        .panel {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .panel h2 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            color: #cbd5e1;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 8px;
+        }
+        svg {
+            width: 100%;
+            height: 320px;
+            background: #090d16;
+            border-radius: 6px;
+            border: 1px solid #1e293b;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #334155;
+        }
+        th {
+            color: #94a3b8;
+        }
+        .badge {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-active { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+        .badge-relay { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
+        .badge-dual { background: rgba(234, 179, 8, 0.2); color: #eab308; }
+    </style>
+</head>
+<body>
+    <header class="top-nav">
+        <h1>ESP-MESH Topology & Seamless Room Handoff HUD</h1>
+        <div>
+            <a href="/" style="color: #38bdf8; text-decoration: none; font-size: 0.9rem; margin-right: 16px;">Live HUD</a>
+            <a href="/static/analytics.html" style="color: #38bdf8; text-decoration: none; font-size: 0.9rem;">Analytics</a>
+        </div>
+    </header>
+
+    <div class="mesh-grid">
+        <div class="kpi-card">
+            <div class="kpi-label">Mesh Network Mode</div>
+            <div class="kpi-value" id="mesh-mode">ESP-MESH</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Root Node ID</div>
+            <div class="kpi-value" id="root-node">Node 1</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Handoff State</div>
+            <div class="kpi-value" id="handoff-state" style="color: #22c55e;">IDLE</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Active Monitored Rooms</div>
+            <div class="kpi-value" id="active-rooms">Room 1</div>
+        </div>
+    </div>
+
+    <div class="visualizer-container">
+        <!-- Left: 2D Triangulation Floor Plan -->
+        <div class="panel">
+            <h2>2D Real-Time Subject Position (Triangulation)</h2>
+            <svg id="floor-plan-svg" viewBox="0 0 100 100">
+                <!-- Room Polygons -->
+                <rect x="5" y="5" width="42" height="90" fill="#1e293b" stroke="#475569" stroke-width="0.8" rx="2"/>
+                <text x="12" y="16" fill="#64748b" font-size="4">Room 101 (Bedroom)</text>
+
+                <rect x="53" y="5" width="42" height="90" fill="#1e293b" stroke="#475569" stroke-width="0.8" rx="2"/>
+                <text x="60" y="16" fill="#64748b" font-size="4">Room 102 (Living)</text>
+
+                <!-- Sensor Nodes -->
+                <circle cx="8" cy="12" r="2.5" fill="#38bdf8" />
+                <text x="12" y="13" fill="#38bdf8" font-size="3">Node 1 (Root)</text>
+
+                <circle cx="8" cy="85" r="2.5" fill="#38bdf8" />
+                <text x="12" y="86" fill="#38bdf8" font-size="3">Node 2 (Relay)</text>
+
+                <circle cx="90" cy="50" r="2.5" fill="#38bdf8" />
+                <text x="70" y="51" fill="#38bdf8" font-size="3">Node 3 (Relay)</text>
+
+                <!-- Subject Position Dot -->
+                <circle id="subject-dot" cx="25" cy="50" r="3.5" fill="#ef4444" stroke="#ffffff" stroke-width="1">
+                    <animate attributeName="r" values="3.5;5;3.5" dur="2s" repeatCount="indefinite" />
+                </circle>
+            </svg>
+            <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 8px;">
+                Position: <span id="pos-coords" style="color: #f8fafc;">(2.5m, 5.0m)</span> | Room: <span id="pos-room" style="color: #38bdf8;">Room 101</span> | Confidence: <span id="pos-conf" style="color: #22c55e;">94%</span>
+            </div>
+        </div>
+
+        <!-- Right: Mesh Topology Table -->
+        <div class="panel">
+            <h2>ESP-MESH Node Routing Table</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Node ID</th>
+                        <th>Role</th>
+                        <th>Hop Count</th>
+                        <th>Parent Node</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="mesh-nodes-tbody">
+                    <tr>
+                        <td>Node 1</td>
+                        <td>Root (AP Bridge)</td>
+                        <td>0 Hops</td>
+                        <td>Hub UDP :5555</td>
+                        <td><span class="badge badge-active">Online</span></td>
+                    </tr>
+                    <tr>
+                        <td>Node 2</td>
+                        <td>Mesh Relay</td>
+                        <td>1 Hop</td>
+                        <td>Node 1</td>
+                        <td><span class="badge badge-relay">Relayed</span></td>
+                    </tr>
+                    <tr>
+                        <td>Node 3</td>
+                        <td>Mesh Relay</td>
+                        <td>2 Hops</td>
+                        <td>Node 2</td>
+                        <td><span class="badge badge-relay">Relayed</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        async function fetchMeshStatus() {
+            try {
+                const res = await fetch('/api/mesh/topology');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.active_handoff_rooms && data.active_handoff_rooms.length > 1) {
+                        document.getElementById('handoff-state').textContent = 'DUAL MONITORING';
+                        document.getElementById('handoff-state').style.color = '#eab308';
+                        document.getElementById('active-rooms').textContent = data.active_handoff_rooms.join(' & ');
+                    } else if (data.active_handoff_rooms && data.active_handoff_rooms.length === 1) {
+                        document.getElementById('handoff-state').textContent = 'IDLE';
+                        document.getElementById('handoff-state').style.color = '#22c55e';
+                        document.getElementById('active-rooms').textContent = data.active_handoff_rooms[0];
+                    }
+                }
+            } catch (e) {
+                console.warn("Error fetching mesh status:", e);
+            }
+
+            try {
+                const posRes = await fetch('/api/position/current');
+                if (posRes.ok) {
+                    const pos = await posRes.json();
+                    document.getElementById('pos-coords').textContent = `(${pos.x}m, ${pos.y}m)`;
+                    document.getElementById('pos-room').textContent = pos.room_id || 'Room 101';
+                    document.getElementById('pos-conf').textContent = `${Math.round((pos.confidence || 0.9) * 100)}%`;
+
+                    // Update SVG dot position (scale 0..10m to 0..100 SVG units)
+                    const dot = document.getElementById('subject-dot');
+                    if (dot) {
+                        dot.setAttribute('cx', Math.max(10, Math.min(90, pos.x * 10)));
+                        dot.setAttribute('cy', Math.max(10, Math.min(90, pos.y * 10)));
+                    }
+                }
+            } catch (e) {
+                // Ignore if position not yet established
+            }
+        }
+
+        setInterval(fetchMeshStatus, 1000);
+        fetchMeshStatus();
+    </script>
+</body>
+</html>

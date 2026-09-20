@@ -80,10 +80,16 @@ class RoomManager:
 
     Args:
         handover_timeout_sec: Seconds of silence before a room goes INACTIVE.
+        handoff_manager: Optional RoomHandoffManager instance for boundary handoffs.
     """
 
-    def __init__(self, handover_timeout_sec: float = HANDOVER_TIMEOUT_SEC):
+    def __init__(
+        self,
+        handover_timeout_sec: float = HANDOVER_TIMEOUT_SEC,
+        handoff_manager: Optional[Any] = None,
+    ):
         self.handover_timeout_sec = handover_timeout_sec
+        self.handoff_manager = handoff_manager
         self._rooms: Dict[int, RoomContext] = {}
         self._lock = threading.RLock()
 
@@ -162,6 +168,24 @@ class RoomManager:
         except Exception as exc:
             logger.error("CSI update error in room %d: %s", room_id, exc)
 
+        if self.handoff_manager is not None:
+            try:
+                node_id = str(getattr(features, "node_id", "1"))
+                rssi = float(getattr(features, "rssi", -50.0))
+                self.handoff_manager.update(str(room_id), node_id, rssi, time.time())
+                # If in DUAL monitoring state, also update target room engine
+                active_rooms = self.handoff_manager.get_active_rooms()
+                for target_room_str in active_rooms:
+                    if target_room_str != str(room_id):
+                        try:
+                            t_ctx = self.get_or_create_room(int(target_room_str))
+                            if t_ctx.fusion_engine is not None:
+                                t_ctx.fusion_engine.update_csi(features, ml_prob=ml_prob)
+                        except Exception:
+                            pass
+            except Exception as e:
+                logger.debug("Handoff manager update error on CSI: %s", e)
+
         return ctx.latest_state
 
     def on_radar_packet(self, room_id: int, telemetry: Any) -> str:
@@ -186,4 +210,11 @@ class RoomManager:
         except Exception as exc:
             logger.error("Radar update error in room %d: %s", room_id, exc)
 
+        if self.handoff_manager is not None:
+            try:
+                self.handoff_manager.update(str(room_id), "radar", -50.0, time.time())
+            except Exception as e:
+                logger.debug("Handoff manager update error on radar: %s", e)
+
         return ctx.latest_state
+

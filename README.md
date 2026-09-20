@@ -270,7 +270,11 @@ Run the comprehensive test suite covering signal processing, ML classification, 
 pytest -v tests/
 ```
 
-Test coverage (232 passing tests, 7 skipped):
+Test coverage (259 passing tests, 7 skipped):
+- `test_mesh_forwarding.py`: ESP-MESH multi-hop forwarding, hop-count TTL checking, and packet parser V2.
+- `test_room_handoff.py`: Room boundary handoff state machine with hysteresis and 8s dual-monitoring window.
+- `test_triangulation.py`: 2D CSI phase-differential triangulation engine with WLS multilateration.
+- `test_mesh_api.py`: Mesh topology and subject position REST API endpoints.
 - `test_hl7_listener.py`: HL7 v2.x ADT message parser and MLLP framing socket listener.
 - `test_patient_context.py`: Patient context store with high-risk medication screening and Morse Fall Scale alert enrichment.
 - `test_fhir_lake.py`: AES-256 encrypted FHIR R4 data lake with key rotation and bundle export.

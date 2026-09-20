@@ -59,6 +59,8 @@ class TelemetryBroadcaster:
         self.patient_context_store = None
         self.fhir_data_lake = None
         self.smart_fhir_client = None
+        self.triangulation_engine = None
+        self.handoff_manager = None
         self.latest_fall_type: Optional[str] = None
         self.latest_fall_type_conf: float = 0.0
         self.thresholds: Dict[str, Any] = {
@@ -811,6 +813,69 @@ async def get_patient_context(room_id: str):
     if not patient:
         return JSONResponse({"error": "No patient context for room", "room_id": room_id}, status_code=404)
     return patient
+
+
+def _get_triangulation_engine():
+    if broadcaster.triangulation_engine is not None:
+        return broadcaster.triangulation_engine
+    try:
+        from hub.triangulation import TriangulationEngine
+        engine = TriangulationEngine({
+            "1": (0.0, 0.0),
+            "2": (5.0, 0.0),
+            "3": (2.5, 5.0),
+        })
+        broadcaster.triangulation_engine = engine
+        return engine
+    except Exception:
+        return None
+
+
+@app.get("/api/position/current")
+async def get_current_position():
+    """Get latest 2D triangulation position estimate."""
+    engine = _get_triangulation_engine()
+    if engine is None:
+        return JSONResponse({"error": "Triangulation engine not available"}, status_code=503)
+    try:
+        pos = engine.estimate_position()
+        return pos
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=404)
+
+
+@app.get("/api/position/history")
+async def get_position_history():
+    """Get position history for trajectory tracking."""
+    engine = _get_triangulation_engine()
+    if engine is None:
+        return JSONResponse({"error": "Triangulation engine not available"}, status_code=503)
+    return {"history": engine.get_history()}
+
+
+@app.get("/api/mesh/topology")
+async def get_mesh_topology():
+    """Return active ESP-MESH topology, relay routes, and handoff status."""
+    nodes = []
+    for node_id, status in broadcaster.node_status.items():
+        nodes.append({
+            "node_id": node_id,
+            "alive": status.get("alive", False),
+            "hop_count": status.get("hop_count", 0),
+            "is_root": (node_id == 1),
+            "parent": None if node_id == 1 else 1,
+            "last_seen": status.get("last_seen", 0.0),
+        })
+    handoff_rooms = []
+    if broadcaster.handoff_manager is not None:
+        handoff_rooms = broadcaster.handoff_manager.get_active_rooms()
+    return {
+        "mesh_enabled": True,
+        "max_hops": 3,
+        "root_node": 1,
+        "nodes": nodes,
+        "active_handoff_rooms": handoff_rooms,
+    }
 
 
 @app.websocket("/ws/telemetry")

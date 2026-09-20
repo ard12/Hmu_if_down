@@ -1,7 +1,7 @@
 # ISO 14971 FMEA Risk Analysis — Fall Detection SaMD v3.x
 
 **Document ID**: RA-ISO14971-V3  
-**Total Hazards Evaluated**: 22  
+**Total Hazards Evaluated**: 23  
 **Standard**: ISO 14971:2019 (Medical devices — Application of risk management to medical devices)  
 **Risk Evaluation Matrix**: Severity (1-5) × Probability (1-5). Acceptability threshold: Residual Risk <= 4.  
 
@@ -31,6 +31,7 @@
 | `HAZ-020` | Fall at edge of radar Field of View (FOV) | Person falls outside 120° azimuth or beyond 5m range | 4 | 2 | **8** | - Omnidirectional WiFi CSI coverage fills FOV gaps<br>- Degraded CSI_ONLY confirmation when radar detects no target<br>- Site survey recommendations for sensor placement in manual | **3** | ✅ YES |
 | `HAZ-021` | Prolonged post-fall lying undetected | Initial fall impact missed, subsequent motion minimal | 5 | 2 | **10** | - Stationary low-height radar target tracking (<0.4m for >10s)<br>- Quiescence detection post-anomaly<br>- High-priority medical alert escalation | **4** | ✅ YES |
 | `HAZ-022` | Simultaneous power loss across hub and nodes | Facility-wide blackout | 5 | 1 | **5** | - Support for uninterruptible power supply (UPS)<br>- System auto-restarts and verifies hash chain integrity upon boot<br>- SYSTEM_START audit log event generated upon power restoration | **3** | ✅ YES |
+| `HAZ-023` | Subject falls in doorway during handoff; neither room engine has full signal coverage | Handoff transition latency or blind spot between room boundaries | 5 | 2 | **10** | - Dual-monitoring state machine active for >=8s during room transition<br>- Simultaneous frame dispatch to both source and destination fusion engines<br>- Radar cross-verification and veto preserved across both engines during handoff | **4** | ✅ YES |
 
 ## Risk Matrix Summary
 

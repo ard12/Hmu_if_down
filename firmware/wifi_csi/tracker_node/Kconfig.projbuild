@@ -22,4 +22,10 @@ menu "Tracker Node Configuration"
         int "Hub HTTP port for OTA binary serving"
         default 8000
         depends on OTA_ENABLED
+
+    config MESH_ENABLED
+        bool "Enable ESP-MESH multi-hop forwarding"
+        default n
+        depends on OTA_ENABLED
 endmenu
+
