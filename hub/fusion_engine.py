@@ -37,6 +37,7 @@ class DualFusionEngine:
         enable_slump_detection: bool = True,
         fall_type_classifier: Optional[Any] = None,
         vital_signs_estimator: Optional[Any] = None,
+        drift_detector: Optional[Any] = None,
     ):
         self.mode = mode
         self.alert = alert_dispatcher or AlertDispatcher()
@@ -46,6 +47,7 @@ class DualFusionEngine:
         self.enable_slump_detection = enable_slump_detection
         self.fall_type_classifier = fall_type_classifier
         self.vital_signs_estimator = vital_signs_estimator
+        self.drift_detector = drift_detector
         self.veto_timeout_sec = 5.0
 
         self.last_radar: Optional[RadarTelemetry] = None
@@ -220,5 +222,11 @@ class DualFusionEngine:
                     pass
 
             self.alert.trigger_alarm(self.mode.value, "FALL_CONFIRMED", details)
+
+        if self.drift_detector is not None:
+            try:
+                self.drift_detector.record_prediction(self.last_ml_prob)
+            except Exception:
+                pass
 
         return self.unified_state

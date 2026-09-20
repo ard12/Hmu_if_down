@@ -39,6 +39,7 @@ models/*.onnx
 models/*.pt
 models/*.pth
 models/*.tflite
+models/*.db
 *.weights
 *.h5
 

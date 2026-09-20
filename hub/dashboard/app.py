@@ -52,6 +52,10 @@ class TelemetryBroadcaster:
         self.analytics = None
         self.cloud_gateway = None
         self.diagnostics_watcher = None
+        self.training_buffer = None
+        self.drift_detector = None
+        self.model_registry = None
+        self.retraining_pipeline = None
         self.latest_fall_type: Optional[str] = None
         self.latest_fall_type_conf: float = 0.0
         self.thresholds: Dict[str, Any] = {
@@ -156,8 +160,10 @@ async def lifespan(app: FastAPI):
     loop = asyncio.get_running_loop()
     broadcaster.set_loop(loop)
     task = asyncio.create_task(broadcaster.broadcast_loop())
+    retrain_task = asyncio.create_task(_retrain_loop())
     yield
     task.cancel()
+    retrain_task.cancel()
 
 
 app = FastAPI(title="Fall Detection Telemetry HUD", docs_url="/api/docs", lifespan=lifespan)
@@ -597,6 +603,132 @@ async def post_diagnostics_self_test():
     if watcher is None:
         return JSONResponse({"error": "Diagnostics watcher not available"}, status_code=503)
     return watcher.run_self_test()
+
+
+# ---------------------------------------------------------------------------
+# Adaptive Retraining & Model Drift Detection Endpoints (Phase 11)
+# ---------------------------------------------------------------------------
+
+def _get_training_buffer():
+    if broadcaster.training_buffer is not None:
+        return broadcaster.training_buffer
+    try:
+        from hub.training_buffer import TrainingBuffer
+        broadcaster.training_buffer = TrainingBuffer()
+        return broadcaster.training_buffer
+    except Exception:
+        return None
+
+
+def _get_drift_detector():
+    if broadcaster.drift_detector is not None:
+        return broadcaster.drift_detector
+    try:
+        from hub.drift_detector import DriftDetector
+        broadcaster.drift_detector = DriftDetector()
+        return broadcaster.drift_detector
+    except Exception:
+        return None
+
+
+def _get_model_registry():
+    if broadcaster.model_registry is not None:
+        return broadcaster.model_registry
+    try:
+        from hub.model_registry import ModelRegistry
+        broadcaster.model_registry = ModelRegistry()
+        return broadcaster.model_registry
+    except Exception:
+        return None
+
+
+def _get_retraining_pipeline():
+    if broadcaster.retraining_pipeline is not None:
+        return broadcaster.retraining_pipeline
+    try:
+        from hub.retraining_pipeline import RetrainingPipeline
+        registry = _get_model_registry()
+        buffer = _get_training_buffer()
+        detector = _get_drift_detector()
+        if registry and buffer and detector:
+            broadcaster.retraining_pipeline = RetrainingPipeline(
+                registry=registry,
+                buffer=buffer,
+                detector=detector,
+                audit_log=broadcaster.audit_log,
+            )
+            return broadcaster.retraining_pipeline
+    except Exception:
+        return None
+
+
+async def _retrain_loop(interval_s: int = 3600):
+    while True:
+        try:
+            await asyncio.sleep(interval_s)
+            pipeline = _get_retraining_pipeline()
+            if pipeline:
+                pipeline.run()
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.warning(f"Error in background retraining loop: {e}")
+
+
+@app.post("/api/labels/{event_id}")
+async def post_label_event(event_id: str, payload: Dict[str, Any]):
+    """Nursing staff labels an alert: links stored feature to ground-truth label."""
+    confirmed = bool(payload.get("confirmed", False))
+    labeller = str(payload.get("labeller", "unknown"))
+    buf = _get_training_buffer()
+    if buf is not None:
+        buf.label_event(event_id, confirmed)
+    if broadcaster.audit_log is not None and hasattr(broadcaster.audit_log, "append"):
+        try:
+            broadcaster.audit_log.append(
+                "LABEL_CONFIRMED",
+                {"event_id": event_id, "confirmed": confirmed, "labeller": labeller},
+            )
+        except Exception:
+            pass
+    return {"status": "ok", "event_id": event_id, "confirmed": confirmed}
+
+
+@app.get("/api/labels/stats")
+async def get_labels_stats():
+    """Return training buffer statistics."""
+    buf = _get_training_buffer()
+    if buf is None:
+        return {"total": 0, "positives": 0, "negatives": 0, "oldest_ts": 0.0, "newest_ts": 0.0}
+    return buf.stats()
+
+
+@app.get("/api/drift/status")
+async def get_drift_status():
+    """Return model prediction drift metrics and alert status."""
+    detector = _get_drift_detector()
+    if detector is None:
+        return {"psi": 0.0, "kl": 0.0, "status": "UNKNOWN", "reference_n": 0, "live_n": 0}
+    return detector.drift_status()
+
+
+@app.get("/api/retrain/status")
+async def get_retrain_status():
+    """Return latest model retraining status."""
+    pipeline = _get_retraining_pipeline()
+    if pipeline is None:
+        return {"status": "NOT_CONFIGURED", "reason": "Retraining pipeline not initialised"}
+    return getattr(pipeline, "last_result", None) or {"status": "IDLE", "reason": "Awaiting drift evaluation"}
+
+
+@app.post("/api/retrain/trigger")
+async def post_retrain_trigger():
+    """Manually trigger model retraining evaluation."""
+    pipeline = _get_retraining_pipeline()
+    if pipeline is None:
+        return JSONResponse({"error": "Retraining pipeline not available"}, status_code=503)
+    res = pipeline.run()
+    return res
 
 
 @app.websocket("/ws/telemetry")

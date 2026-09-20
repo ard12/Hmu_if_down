@@ -270,12 +270,23 @@ Run the comprehensive test suite covering signal processing, ML classification, 
 pytest -v tests/
 ```
 
-Test coverage (62 passing tests):
+Test coverage (202 passing tests, 7 skipped):
+- `test_training_buffer.py`: Rolling ring-buffer for incremental retraining with ground-truth nursing event annotation.
+- `test_drift_detector.py`: Population Stability Index (PSI) and KL divergence concept drift detection.
+- `test_retraining_pipeline.py`: Automated model retraining, evaluation, clinical safety floors, and rollback.
+- `test_model_registry.py`: SQLite versioned model store, SHA-256 cryptographic integrity verification, and IEC 62304 changelog.
+- `test_vital_signs.py`: Post-fall respiration micro-Doppler estimator (6-30 bpm) and inanimate signal rejection.
+- `test_clinical_trial_runner.py`: Clinical trial cohort simulation (4 demographics) and FDA GMLP fairness disparity verification.
+- `test_cloud_sync.py`: Multi-facility cloud gateway with offline store-and-forward SQLite queue and retry policies.
+- `test_diagnostics.py`: Continuous system diagnostics daemon, packet rate/jitter monitoring, and IEC 60601-1-8 self-test.
+- `test_traceability.py`: IEC 62304 Software Requirement Traceability Matrix with 32 SRS items and 100% test coverage.
+- `test_risk_analysis.py`: ISO 14971 FMEA Risk Register with 22 validated hazards.
+- `test_clinical_report.py`: Automated clinical performance validation report generator.
 - `test_active_veto.py`: Active radar veto, standing posture false alarm suppression, and kinematic slump detection.
 - `test_adaptive_calibrator.py`: Carrier-aware Doppler scaling (2.4 GHz vs 5.8 GHz) and continuous EMA noise tracking.
 - `test_clutter_filter.py`: Spatial Elevation Perturbation Ratio (EPR) and radar cluster area ($<0.15\,\text{m}^2$) pet filters.
 - `test_train_pipeline.py`: Empirical dataset training, Stratified 5-Fold Cross-Validation, and ROC/PR metric evaluations.
-- `test_dashboard.py`: FastAPI routes, WebSockets, and REST management endpoints (`/api/calibrate`, `/api/thresholds`, `/api/datasets`).
+- `test_dashboard.py`: FastAPI routes, WebSockets, and REST management endpoints (`/api/calibrate`, `/api/thresholds`, `/api/labels/*`, `/api/drift/*`, `/api/retrain/*`).
 - `test_csi_pipeline.py`: Raw CSI packet decoding (`CSIF`), Butterworth filtering, PCA, and Doppler velocity.
 - `test_mmwave_parser.py`: 60 GHz mmWave radar binary frame parser (`0x53 0x59`) with checksum validation and cluster parsing.
 - `test_classifier.py`: 9D kinematic feature extraction, ML probability discrimination, and hybrid fusion escalation.

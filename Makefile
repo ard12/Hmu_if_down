@@ -7,7 +7,7 @@
 #   make lint          Run flake8 over hub/ and tests/
 #   make release TAG=v3.0.0   Tag and push a versioned release
 
-.PHONY: all test train docker lint release clean report
+.PHONY: all test train docker lint release clean report model-changelog
 
 PYTHON  ?= python
 PYTEST  ?= pytest
@@ -53,9 +53,16 @@ report:
 	  --audit-db audits/audit.db \
 	  --output docs/CLINICAL_PERFORMANCE_REPORT.md
 
+# ── Model Changelog ──────────────────────────────────────────────────────────
+model-changelog:
+	$(PYTHON) docs/generate_model_changelog.py \
+	  --db models/registry.db \
+	  --output docs/MODEL_CHANGELOG.md
+
 # ── Clean ───────────────────────────────────────────────────────────────────
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find . -name "*.pyc" -delete 2>/dev/null || true
 	rm -rf .pytest_cache/ hub/__pycache__/ tests/__pycache__/
+
 

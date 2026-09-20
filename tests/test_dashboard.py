@@ -98,3 +98,35 @@ def test_dashboard_datasets_api(client):
     assert "datasets" in data
     assert "total_count" in data
     assert isinstance(data["datasets"], list)
+
+
+def test_dashboard_phase11_endpoints(client):
+    """Test Phase 11 REST endpoints for labeling, drift status, and retraining."""
+    # 1. POST /api/labels/{event_id}
+    res_label = client.post("/api/labels/evt_test_1", json={"confirmed": True, "labeller": "nurse_42"})
+    assert res_label.status_code == 200
+    assert res_label.json()["status"] == "ok"
+    assert res_label.json()["confirmed"] is True
+
+    # 2. GET /api/labels/stats
+    res_stats = client.get("/api/labels/stats")
+    assert res_stats.status_code == 200
+    assert "total" in res_stats.json()
+    assert "positives" in res_stats.json()
+
+    # 3. GET /api/drift/status
+    res_drift = client.get("/api/drift/status")
+    assert res_drift.status_code == 200
+    assert "psi" in res_drift.json()
+    assert "status" in res_drift.json()
+
+    # 4. GET /api/retrain/status
+    res_retrain_status = client.get("/api/retrain/status")
+    assert res_retrain_status.status_code == 200
+    assert "status" in res_retrain_status.json()
+
+    # 5. POST /api/retrain/trigger
+    res_retrain_trigger = client.post("/api/retrain/trigger")
+    assert res_retrain_trigger.status_code == 200
+    assert "status" in res_retrain_trigger.json()
+
