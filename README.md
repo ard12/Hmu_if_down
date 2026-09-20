@@ -270,7 +270,11 @@ Run the comprehensive test suite covering signal processing, ML classification, 
 pytest -v tests/
 ```
 
-Test coverage (202 passing tests, 7 skipped):
+Test coverage (232 passing tests, 7 skipped):
+- `test_hl7_listener.py`: HL7 v2.x ADT message parser and MLLP framing socket listener.
+- `test_patient_context.py`: Patient context store with high-risk medication screening and Morse Fall Scale alert enrichment.
+- `test_fhir_lake.py`: AES-256 encrypted FHIR R4 data lake with key rotation and bundle export.
+- `test_smart_fhir_client.py`: SMART-on-FHIR OAuth2 client with proactive token renewal and REST operations.
 - `test_training_buffer.py`: Rolling ring-buffer for incremental retraining with ground-truth nursing event annotation.
 - `test_drift_detector.py`: Population Stability Index (PSI) and KL divergence concept drift detection.
 - `test_retraining_pipeline.py`: Automated model retraining, evaluation, clinical safety floors, and rollback.

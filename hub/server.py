@@ -116,6 +116,24 @@ def parse_args():
         default=None,
         help="Listening port for secondary hub UDP relay client (e.g. 9200)",
     )
+    parser.add_argument(
+        "--fhir-base-url",
+        type=str,
+        default=None,
+        help="SMART-on-FHIR server base URL",
+    )
+    parser.add_argument(
+        "--fhir-client-id",
+        type=str,
+        default=None,
+        help="SMART-on-FHIR OAuth2 client ID",
+    )
+    parser.add_argument(
+        "--fhir-client-secret",
+        type=str,
+        default=None,
+        help="SMART-on-FHIR OAuth2 client secret",
+    )
     return parser.parse_args()
 
 
@@ -741,6 +759,21 @@ def main():
         web_thread = threading.Thread(target=_run_web, args=(args.web_port,), daemon=True)
         web_thread.start()
         print(f"  [WEB]   Dashboard HUD available at http://localhost:{args.web_port}")
+
+    if getattr(args, "fhir_base_url", None) and getattr(args, "fhir_client_id", None) and getattr(args, "fhir_client_secret", None):
+        try:
+            from hub.smart_fhir_client import SMARTFHIRClient
+            smart_client = SMARTFHIRClient(
+                fhir_base_url=args.fhir_base_url,
+                client_id=args.fhir_client_id,
+                client_secret=args.fhir_client_secret,
+            )
+            print(f"  [FHIR]  SMART-on-FHIR client initialized for {args.fhir_base_url}")
+            if args.web:
+                from hub.dashboard.app import broadcaster as web_broadcaster
+                web_broadcaster.smart_fhir_client = smart_client
+        except Exception as e:
+            print(f"  [FHIR]  Failed to initialize SMART-on-FHIR client: {e}")
 
     if args.demo:
         run_demo(fusion_engine, is_web=args.web, classifier=classifier, ha_manager=ha_manager)

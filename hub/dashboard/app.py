@@ -56,6 +56,9 @@ class TelemetryBroadcaster:
         self.drift_detector = None
         self.model_registry = None
         self.retraining_pipeline = None
+        self.patient_context_store = None
+        self.fhir_data_lake = None
+        self.smart_fhir_client = None
         self.latest_fall_type: Optional[str] = None
         self.latest_fall_type_conf: float = 0.0
         self.thresholds: Dict[str, Any] = {
@@ -729,6 +732,85 @@ async def post_retrain_trigger():
         return JSONResponse({"error": "Retraining pipeline not available"}, status_code=503)
     res = pipeline.run()
     return res
+
+
+# ---------------------------------------------------------------------------
+# Encrypted FHIR R4 Data Lake & Patient Context Endpoints (Phase 12)
+# ---------------------------------------------------------------------------
+
+def _get_patient_context_store():
+    if broadcaster.patient_context_store is not None:
+        return broadcaster.patient_context_store
+    try:
+        from hub.patient_context import PatientContextStore
+        broadcaster.patient_context_store = PatientContextStore(
+            db_path=str(PROJECT_ROOT / "models" / "patient_context.db")
+        )
+        return broadcaster.patient_context_store
+    except Exception:
+        return None
+
+
+def _get_fhir_data_lake():
+    if broadcaster.fhir_data_lake is not None:
+        return broadcaster.fhir_data_lake
+    try:
+        from hub.fhir_lake import FHIRDataLake
+        from cryptography.fernet import Fernet
+        key_path = PROJECT_ROOT / "models" / ".fhir_key"
+        if key_path.exists():
+            key = key_path.read_bytes().strip()
+        else:
+            key = Fernet.generate_key()
+            key_path.parent.mkdir(parents=True, exist_ok=True)
+            key_path.write_bytes(key)
+        broadcaster.fhir_data_lake = FHIRDataLake(
+            db_path=str(PROJECT_ROOT / "models" / "fhir_lake.db"),
+            key=key,
+        )
+        return broadcaster.fhir_data_lake
+    except Exception:
+        return None
+
+
+@app.get("/api/fhir/patient/{patient_id}/bundle")
+async def get_fhir_patient_bundle(patient_id: str):
+    """Export all FHIR resources for a patient as an R4 Bundle."""
+    lake = _get_fhir_data_lake()
+    if lake is None:
+        return JSONResponse({"error": "FHIR data lake not available"}, status_code=503)
+    try:
+        bundle = lake.export_bundle(patient_id)
+        return bundle
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/fhir/observation")
+async def post_fhir_observation(observation: Dict[str, Any]):
+    """Store a FHIR Observation in the encrypted data lake."""
+    lake = _get_fhir_data_lake()
+    if lake is None:
+        return JSONResponse({"error": "FHIR data lake not available"}, status_code=503)
+    try:
+        res_id = lake.write_resource("Observation", observation)
+        return {"id": res_id, "status": "stored", "resourceType": "Observation"}
+    except ValueError as ve:
+        return JSONResponse({"error": str(ve)}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/patient/{room_id}")
+async def get_patient_context(room_id: str):
+    """Get active patient context for a room."""
+    store = _get_patient_context_store()
+    if store is None:
+        return JSONResponse({"error": "Patient context store not available"}, status_code=503)
+    patient = store.get(room_id)
+    if not patient:
+        return JSONResponse({"error": "No patient context for room", "room_id": room_id}, status_code=404)
+    return patient
 
 
 @app.websocket("/ws/telemetry")

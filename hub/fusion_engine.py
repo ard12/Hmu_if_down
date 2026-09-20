@@ -38,6 +38,7 @@ class DualFusionEngine:
         fall_type_classifier: Optional[Any] = None,
         vital_signs_estimator: Optional[Any] = None,
         drift_detector: Optional[Any] = None,
+        patient_context_store: Optional[Any] = None,
     ):
         self.mode = mode
         self.alert = alert_dispatcher or AlertDispatcher()
@@ -48,6 +49,7 @@ class DualFusionEngine:
         self.fall_type_classifier = fall_type_classifier
         self.vital_signs_estimator = vital_signs_estimator
         self.drift_detector = drift_detector
+        self.patient_context_store = patient_context_store
         self.veto_timeout_sec = 5.0
 
         self.last_radar: Optional[RadarTelemetry] = None
@@ -218,6 +220,21 @@ class DualFusionEngine:
                     vs = self.vital_signs_estimator.process_radar_quiescence(dummy_phase, sample_rate_hz=20.0)
                     self.last_vital_signs = vs
                     details += f", VitalSigns={vs.status}"
+                except Exception:
+                    pass
+
+            if self.patient_context_store is not None:
+                try:
+                    room_id = getattr(self, "room_id", "default")
+                    enriched = self.patient_context_store.enrich_alert(
+                        {"details": details, "state": "CONFIRMED"}, room_id=room_id
+                    )
+                    if enriched.get("patient_id"):
+                        details += f", Patient={enriched['patient_id']}"
+                    if enriched.get("high_risk"):
+                        details += ", HighRiskPatient=True"
+                    if enriched.get("high_risk_meds"):
+                        details += f", HighRiskMeds={len(enriched['high_risk_meds'])}"
                 except Exception:
                     pass
 
