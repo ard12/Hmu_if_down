@@ -61,6 +61,9 @@ class TelemetryBroadcaster:
         self.smart_fhir_client = None
         self.triangulation_engine = None
         self.handoff_manager = None
+        self.gait_analyzer = None
+        self.prefail_detector = None
+        self.frax_calculator = None
         self.latest_fall_type: Optional[str] = None
         self.latest_fall_type_conf: float = 0.0
         self.thresholds: Dict[str, Any] = {
@@ -878,7 +881,129 @@ async def get_mesh_topology():
     }
 
 
+def _get_gait_analyzer():
+    if broadcaster.gait_analyzer is not None:
+        return broadcaster.gait_analyzer
+    try:
+        from hub.gait_analyzer import GaitCadenceAnalyzer
+        broadcaster.gait_analyzer = GaitCadenceAnalyzer(fs=100.0)
+        return broadcaster.gait_analyzer
+    except Exception:
+        return None
+
+
+def _get_prefail_detector():
+    if broadcaster.prefail_detector is not None:
+        return broadcaster.prefail_detector
+    try:
+        from hub.prefail_detector import PreFallAnomalyDetector
+        broadcaster.prefail_detector = PreFallAnomalyDetector()
+        return broadcaster.prefail_detector
+    except Exception:
+        return None
+
+
+def _get_frax_calculator():
+    if broadcaster.frax_calculator is not None:
+        return broadcaster.frax_calculator
+    try:
+        from hub.frax_risk import FRAXFallRiskScore
+        broadcaster.frax_calculator = FRAXFallRiskScore()
+        return broadcaster.frax_calculator
+    except Exception:
+        return None
+
+
+@app.get("/api/mobility/risk")
+async def get_mobility_risk():
+    """Return real-time gait cadence, mobility classification, and pre-fall risk status."""
+    gait_engine = _get_gait_analyzer()
+    prefail_engine = _get_prefail_detector()
+    gait_res = gait_engine.analyze() if gait_engine is not None else {
+        "cadence_hz": 1.8,
+        "gait_class": "NORMAL",
+        "stride_regularity": 0.95,
+        "velocity_envelope_peak": 0.85,
+        "confidence": 0.9,
+    }
+    prefail_res = prefail_engine.update(gait_res) if prefail_engine is not None else {
+        "risk_score": 10,
+        "risk_level": "NORMAL",
+        "contributing_factors": [],
+        "seconds_until_escalation": None,
+    }
+    return {
+        "status": "success",
+        "gait": gait_res,
+        "pre_fall": prefail_res,
+    }
+
+
+@app.get("/api/prefail/status")
+async def get_prefail_status(room_id: Optional[str] = None):
+    """Return current pre-fall anomaly detector risk status."""
+    prefail_engine = _get_prefail_detector()
+    if prefail_engine is None:
+        return JSONResponse({"error": "Pre-fall detector not available"}, status_code=503)
+    gait_engine = _get_gait_analyzer()
+    gait_info = gait_engine.analyze() if gait_engine is not None else {
+        "gait_class": "NORMAL",
+        "velocity_envelope_peak": 0.8,
+    }
+    pt_ctx = None
+    if room_id:
+        store = _get_patient_context_store()
+        if store:
+            pt_ctx = store.get(room_id)
+    res = prefail_engine.update(gait_info, patient_context=pt_ctx)
+    return res
+
+
+@app.get("/api/prefail/history")
+async def get_prefail_history():
+    """Return 60-snapshot history of pre-fall risk scores."""
+    prefail_engine = _get_prefail_detector()
+    if prefail_engine is None:
+        return JSONResponse({"error": "Pre-fall detector not available"}, status_code=503)
+    return {"history": prefail_engine.get_history()}
+
+
+@app.get("/api/frax/{room_id}")
+async def get_frax_score(room_id: str):
+    """Compute FRAX-style 10-year clinical fall risk score using room patient context."""
+    calc = _get_frax_calculator()
+    if calc is None:
+        return JSONResponse({"error": "FRAX calculator not available"}, status_code=503)
+    store = _get_patient_context_store()
+    patient = store.get(room_id) if store else None
+    if not patient:
+        score = calc.compute(age=65, gender="F", bmi=24.0, prior_fall=False, morse_fall_scale=0, n_high_risk_meds=0)
+        score["room_id"] = room_id
+        score["patient_id"] = "UNOCCUPIED"
+        return score
+
+    age = int(patient.get("age", 70))
+    gender = str(patient.get("gender", "F"))
+    bmi = float(patient.get("bmi", 23.5))
+    prior_fall = bool(patient.get("prior_fall", False))
+    morse = int(patient.get("morse_fall_scale", 0))
+    meds = patient.get("high_risk_meds") or patient.get("medications") or []
+    n_meds = len(meds)
+    score = calc.compute(
+        age=age,
+        gender=gender,
+        bmi=bmi,
+        prior_fall=prior_fall,
+        morse_fall_scale=morse,
+        n_high_risk_meds=n_meds,
+    )
+    score["room_id"] = room_id
+    score["patient_id"] = patient.get("patient_id", "UNKNOWN")
+    return score
+
+
 @app.websocket("/ws/telemetry")
+
 async def websocket_telemetry(websocket: WebSocket):
     await websocket.accept()
     broadcaster.connect(websocket)

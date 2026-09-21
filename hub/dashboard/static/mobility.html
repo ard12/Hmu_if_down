@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fall Detection — Proactive Mobility & Fall Risk HUD</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+        .top-nav h1 {
+            font-size: 1.5rem;
+            margin: 0;
+            color: #38bdf8;
+        }
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .kpi-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        .kpi-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #38bdf8;
+            margin: 8px 0 4px;
+        }
+        .kpi-label {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        @media (max-width: 900px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+        .panel {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .panel h2 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            color: #cbd5e1;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 8px;
+        }
+        meter {
+            width: 100%;
+            height: 28px;
+            border-radius: 6px;
+        }
+        meter::-webkit-meter-optimum-value { background: #22c55e; }
+        meter::-webkit-meter-suboptimum-value { background: #eab308; }
+        meter::-webkit-meter-even-less-good-value { background: #ef4444; }
+        .risk-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+        .risk-normal { background: rgba(34, 197, 94, 0.2); color: #22c55e; border: 1px solid #22c55e; }
+        .risk-elevated { background: rgba(234, 179, 8, 0.2); color: #eab308; border: 1px solid #eab308; }
+        .risk-watch { background: rgba(249, 115, 22, 0.2); color: #f97316; border: 1px solid #f97316; }
+        .risk-immediate { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; }
+        ul.factors-list {
+            margin: 12px 0 0;
+            padding-left: 20px;
+            color: #cbd5e1;
+            font-size: 0.9rem;
+        }
+        ul.factors-list li {
+            margin-bottom: 6px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #334155;
+        }
+        th { color: #94a3b8; }
+    </style>
+</head>
+<body>
+    <header class="top-nav">
+        <h1>Proactive Mobility & Fall Risk HUD</h1>
+        <div>
+            <a href="/" style="color: #38bdf8; text-decoration: none; font-size: 0.9rem; margin-right: 16px;">Live HUD</a>
+            <a href="/static/mesh.html" style="color: #38bdf8; text-decoration: none; font-size: 0.9rem; margin-right: 16px;">Mesh HUD</a>
+            <a href="/static/analytics.html" style="color: #38bdf8; text-decoration: none; font-size: 0.9rem;">Analytics</a>
+        </div>
+    </header>
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-label">Current Gait Class</div>
+            <div class="kpi-value" id="gait-class">NORMAL</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Step Cadence</div>
+            <div class="kpi-value" id="cadence-hz">1.8 Hz</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Pre-Fall Risk Level</div>
+            <div class="kpi-value" id="risk-level-kpi" style="color: #22c55e;">NORMAL</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">10-Yr Clinical Risk (FRAX)</div>
+            <div class="kpi-value" id="frax-prob">12%</div>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <!-- Left: Pre-Fall Behavioral Anomaly Meter -->
+        <div class="panel">
+            <h2>Pre-Fall Behavioral Anomaly Meter (120s Window)</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin: 16px 0 8px;">
+                <span style="font-size: 0.9rem; color: #94a3b8;">Risk Score: <strong id="risk-score-num" style="color: #f8fafc; font-size: 1.2rem;">15</strong> / 100</span>
+                <span id="risk-badge" class="risk-badge risk-normal">NORMAL</span>
+            </div>
+            <meter id="prefall-meter" min="0" max="100" low="30" high="70" optimum="10" value="15"></meter>
+
+            <h3 style="font-size: 0.95rem; margin-top: 20px; color: #94a3b8;">Contributing Biomechanical Factors:</h3>
+            <ul id="contributing-factors" class="factors-list">
+                <li>No anomalous pre-fall patterns detected</li>
+            </ul>
+        </div>
+
+        <!-- Right: FRAX Clinical Fall Risk Breakdown -->
+        <div class="panel">
+            <h2>FRAX Clinical Fall Risk Stratification</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Value</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="frax-tbody">
+                    <tr>
+                        <td>10-Year Probability</td>
+                        <td id="frax-table-prob">12.0%</td>
+                        <td><span class="risk-badge risk-normal">LOW</span></td>
+                    </tr>
+                    <tr>
+                        <td>Primary Risk Factors</td>
+                        <td colspan="2" id="frax-factors">Standard age baseline</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        async function refreshMobilityData() {
+            try {
+                const res = await fetch('/api/mobility/risk');
+                if (res.ok) {
+                    const data = await res.json();
+                    const gait = data.gait || {};
+                    const pre = data.pre_fall || {};
+
+                    document.getElementById('gait-class').textContent = gait.gait_class || 'NORMAL';
+                    document.getElementById('cadence-hz').textContent = `${gait.cadence_hz || 0} Hz`;
+
+                    const score = pre.risk_score || 0;
+                    const level = pre.risk_level || 'NORMAL';
+                    document.getElementById('risk-score-num').textContent = score;
+                    document.getElementById('prefall-meter').value = score;
+
+                    const badge = document.getElementById('risk-badge');
+                    const kpi = document.getElementById('risk-level-kpi');
+                    badge.textContent = level;
+                    kpi.textContent = level;
+
+                    badge.className = 'risk-badge';
+                    if (level === 'IMMEDIATE_INTERVENTION') {
+                        badge.classList.add('risk-immediate');
+                        kpi.style.color = '#ef4444';
+                    } else if (level === 'WATCH') {
+                        badge.classList.add('risk-watch');
+                        kpi.style.color = '#f97316';
+                    } else if (level === 'ELEVATED') {
+                        badge.classList.add('risk-elevated');
+                        kpi.style.color = '#eab308';
+                    } else {
+                        badge.classList.add('risk-normal');
+                        kpi.style.color = '#22c55e';
+                    }
+
+                    const factorsUl = document.getElementById('contributing-factors');
+                    factorsUl.innerHTML = '';
+                    if (pre.contributing_factors && pre.contributing_factors.length > 0) {
+                        pre.contributing_factors.forEach(f => {
+                            const li = document.createElement('li');
+                            li.textContent = f;
+                            factorsUl.appendChild(li);
+                        });
+                    } else {
+                        const li = document.createElement('li');
+                        li.textContent = 'No anomalous pre-fall patterns detected';
+                        factorsUl.appendChild(li);
+                    }
+                }
+            } catch (e) {
+                console.warn('Error updating mobility data:', e);
+            }
+
+            try {
+                const fraxRes = await fetch('/api/frax/1');
+                if (fraxRes.ok) {
+                    const frax = await fraxRes.json();
+                    const prob = Math.round((frax.ten_year_fall_risk || 0.12) * 100);
+                    document.getElementById('frax-prob').textContent = `${prob}%`;
+                    document.getElementById('frax-table-prob').textContent = `${(frax.ten_year_fall_risk * 100).toFixed(1)}%`;
+                    document.getElementById('frax-factors').textContent = (frax.primary_risk_factors || []).join(', ') || 'None';
+                }
+            } catch (e) {
+                // Ignore if frax not yet loaded
+            }
+        }
+
+        setInterval(refreshMobilityData, 2000);
+        refreshMobilityData();
+    </script>
+</body>
+</html>

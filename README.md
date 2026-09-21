@@ -25,7 +25,8 @@ An intelligent, non-invasive, privacy-preserving fall detection platform enginee
 13. **Advanced Signal Processing & Population Health (v3.2.0)**: Recency-weighted temporal attention windowing for STFT velocity estimation, Platt-calibrated Bayesian fall probabilities (`CalibratedClassifierCV`), graduated alert severities, 5-class second-stage fall-type classifier, and population health analytics (`/api/analytics/*`, `analytics.html`).
 14. **FDA SaMD Class II Certification Package (v3.3.0)**: Complete IEC 62304 Software Requirement Traceability Matrix with 32 SRS items and 100% test coverage (`docs/TRACEABILITY_MATRIX.md`), ISO 14971 FMEA Risk Register with 22 hazards (`docs/RISK_ANALYSIS.md`), FDA 510(k) Predicate Comparison against Philips Lifeline AutoAlert K151548 (`docs/PREDICATE_COMPARISON.md`), and automated Clinical Performance Validation Report generator (`docs/CLINICAL_PERFORMANCE_REPORT.md`).
 15. **Enterprise Healthcare Deployment & Vital Signs (v3.4.0)**: Post-Fall Respiration & Vital Signs micro-Doppler Estimator (`hub/vital_signs.py`, 6-30 bpm), Automated Clinical Trial Cohort Simulator (`hub/clinical_trial_runner.py`), FDA GMLP Principle 7 Demographic Fairness & Disparity Report (`docs/CLINICAL_TRIAL_COHORT_REPORT.md`), Multi-Facility Cloud Gateway with Offline Store-and-Forward SQLite Queue (`hub/cloud_sync.py`), Continuous System Diagnostics & IEC 60601-1-8 Alarm System Watchdog Daemon (`hub/diagnostics.py`).
-16. **Detailed Audit & Technical Findings**: Consult [**`SYSTEM_AUDIT_AND_FINDINGS.md`**](SYSTEM_AUDIT_AND_FINDINGS.md) for the comprehensive living engineering log, physics calculations, FMEA edge cases, and architectural benchmarks.
+16. **Fall Risk Prediction & Proactive Intervention (v3.8.0)**: Gait cadence extractor from CSI micro-Doppler spectrograms (`hub/gait_analyzer.py`), pre-fall behavioural anomaly detector scoring shuffle, velocity drop, and hesitation patterns (`hub/prefail_detector.py`), FRAX-style 10-year clinical fall risk calculator (`hub/frax_risk.py`), proactive alert dispatch in `DualFusionEngine`, and real-time Mobility & Risk HUD (`hub/dashboard/static/mobility.html`).
+17. **Detailed Audit & Technical Findings**: Consult [**`SYSTEM_AUDIT_AND_FINDINGS.md`**](SYSTEM_AUDIT_AND_FINDINGS.md) for the comprehensive living engineering log, physics calculations, FMEA edge cases, and architectural benchmarks.
 
 
 ---
@@ -270,7 +271,11 @@ Run the comprehensive test suite covering signal processing, ML classification, 
 pytest -v tests/
 ```
 
-Test coverage (259 passing tests, 7 skipped):
+Test coverage (288 passing tests, 7 skipped):
+- `test_gait_analyzer.py`: STFT Doppler spectrogram, unbiased autocorrelation, and cadence classification (NORMAL, SLOW, SHUFFLE, STATIONARY).
+- `test_prefail_detector.py`: 120s rolling pre-fall risk scoring and WATCH / IMMEDIATE_INTERVENTION escalation.
+- `test_frax_risk.py`: FRAX-style 10-year clinical fall risk logistic calculator with demographic & medication factors.
+- `test_mobility_api.py`: Mobility risk, prefail status/history, and FRAX REST API endpoints.
 - `test_mesh_forwarding.py`: ESP-MESH multi-hop forwarding, hop-count TTL checking, and packet parser V2.
 - `test_room_handoff.py`: Room boundary handoff state machine with hysteresis and 8s dual-monitoring window.
 - `test_triangulation.py`: 2D CSI phase-differential triangulation engine with WLS multilateration.

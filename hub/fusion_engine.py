@@ -39,6 +39,7 @@ class DualFusionEngine:
         vital_signs_estimator: Optional[Any] = None,
         drift_detector: Optional[Any] = None,
         patient_context_store: Optional[Any] = None,
+        prefail_detector: Optional[Any] = None,
     ):
         self.mode = mode
         self.alert = alert_dispatcher or AlertDispatcher()
@@ -50,6 +51,7 @@ class DualFusionEngine:
         self.vital_signs_estimator = vital_signs_estimator
         self.drift_detector = drift_detector
         self.patient_context_store = patient_context_store
+        self.prefail_detector = prefail_detector
         self.veto_timeout_sec = 5.0
 
         self.last_radar: Optional[RadarTelemetry] = None
@@ -87,7 +89,30 @@ class DualFusionEngine:
             self.last_ml_prob = float(ml_prob)
         elif hasattr(features, "ml_fall_probability") and features.ml_fall_probability > 0:
             self.last_ml_prob = float(features.ml_fall_probability)
+
+        if self.prefail_detector is not None:
+            try:
+                gait_info = {
+                    "gait_class": getattr(features, "gait_class", "NORMAL"),
+                    "velocity_envelope_peak": getattr(features, "velocity_mps", 0.8),
+                    "cadence_hz": getattr(features, "cadence_hz", 1.8),
+                }
+                pt_ctx = None
+                if self.patient_context_store is not None:
+                    pt_ctx = self.patient_context_store.get(str(getattr(features, "room_id", "1")))
+                risk_res = self.prefail_detector.update(gait_info, patient_context=pt_ctx, timestamp=now)
+                if risk_res.get("risk_level") in ("WATCH", "IMMEDIATE_INTERVENTION"):
+                    if self.unified_state == UnifiedFallState.NORMAL:
+                        self.alert.dispatch(
+                            modality="PRE_FALL_RISK",
+                            confidence=float(risk_res.get("risk_score", 70)) / 100.0,
+                            features=risk_res,
+                        )
+            except Exception as e:
+                logger.debug("Pre-fall detector update error: %s", e)
+
         return self._evaluate_consensus(current_time=now)
+
 
     def update_radar(self, telemetry: RadarTelemetry, current_time: Optional[float] = None) -> UnifiedFallState:
         """Process incoming radar telemetry from mmWave gateway."""
