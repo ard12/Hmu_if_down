@@ -14,7 +14,7 @@ import time
 from typing import Any, Dict, List, Optional, Set
 import numpy as np
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -70,6 +70,7 @@ class TelemetryBroadcaster:
         self.biomechanics_classifier = None
         self.federated_server = None
         self.personalization_layer = None
+        self.is_ready: bool = True
         self.latest_fall_type: Optional[str] = None
         self.latest_fall_type_conf: float = 0.0
         self.thresholds: Dict[str, Any] = {
@@ -211,6 +212,49 @@ async def get_status():
         "active_clients": len(broadcaster.active_connections),
         "timestamp": now,
     }
+
+
+@app.get("/health")
+async def get_readiness_health():
+    """Kubernetes readiness probe endpoint."""
+    if not getattr(broadcaster, "is_ready", True):
+        return JSONResponse({"status": "not_ready"}, status_code=503)
+    return {"status": "ready"}
+
+
+@app.get("/metrics")
+async def get_prometheus_metrics():
+    """Prometheus exposition format endpoint."""
+    try:
+        from hub.metrics import get_metrics_text, CONTENT_TYPE_LATEST
+        return Response(content=get_metrics_text(), media_type=CONTENT_TYPE_LATEST)
+    except Exception as e:
+        logger.warning(f"Failed to generate metrics: {e}")
+        return Response(content=b"", media_type="text/plain")
+
+
+@app.get("/api/diagnostics/health")
+async def get_diagnostics_health():
+    """Kubernetes liveness and system diagnostics health check."""
+    if broadcaster.diagnostics_watcher is None:
+        try:
+            from hub.diagnostics import SystemDiagnosticsWatcher
+            broadcaster.diagnostics_watcher = SystemDiagnosticsWatcher()
+        except Exception:
+            pass
+
+    if broadcaster.diagnostics_watcher is not None:
+        self_test = broadcaster.diagnostics_watcher.run_self_test()
+        if not self_test.get("self_test_passed", True) or self_test.get("iec_60601_compliance") == "FAIL":
+            return JSONResponse(self_test, status_code=503)
+        health_eval = broadcaster.diagnostics_watcher.evaluate_health()
+        return {
+            "status": "healthy",
+            "self_test": self_test,
+            "health": health_eval,
+        }
+
+    return {"status": "healthy"}
 
 
 @app.get("/api/incidents")

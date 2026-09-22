@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "fall-detection-hub.fullname" . }}-config
+  labels:
+    {{- include "fall-detection-hub.labels" . | nindent 4 }}
+data:
+  multiRoom: {{ .Values.config.multiRoom | quote }}
+  enableRadarVeto: {{ .Values.config.enableRadarVeto | quote }}
+  enablePetFilter: {{ .Values.config.enablePetFilter | quote }}
+  logLevel: {{ .Values.config.logLevel | quote }}

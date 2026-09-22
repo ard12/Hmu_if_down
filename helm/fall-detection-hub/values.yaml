@@ -1,0 +1,103 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/ard12/fall-detection-hub
+  pullPolicy: IfNotPresent
+  tag: "" # Defaults to Chart.appVersion
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8000"
+  prometheus.io/path: "/metrics"
+
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000
+
+service:
+  type: ClusterIP
+  httpPort: 8000
+  csiUdpPort: 5555
+  radarUdpPort: 5556
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+  hosts:
+    - host: fall-detection.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: "2"
+    memory: 2Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetWebSocketConnections: 50
+
+persistence:
+  enabled: true
+  storageClass: "standard"
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  mountPath: /app/models
+
+livenessProbe:
+  httpGet:
+    path: /api/diagnostics/health
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 2
+
+config:
+  multiRoom: true
+  enableRadarVeto: false
+  enablePetFilter: true
+  logLevel: INFO
+
+secret:
+  fhirMasterKey: "ZmFsbC1kZXRlY3Rpb24tZGVmYXVsdC1rZXktZm9yLXRlc3Rpbmc="
+  cloudApiKey: "dev-cloud-secret-key"
+
+serviceMonitor:
+  enabled: true
+  interval: 15s
+  path: /metrics

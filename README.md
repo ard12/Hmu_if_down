@@ -28,7 +28,8 @@ An intelligent, non-invasive, privacy-preserving fall detection platform enginee
 16. **Fall Risk Prediction & Proactive Intervention (v3.8.0)**: Gait cadence extractor from CSI micro-Doppler spectrograms (`hub/gait_analyzer.py`), pre-fall behavioural anomaly detector scoring shuffle, velocity drop, and hesitation patterns (`hub/prefail_detector.py`), FRAX-style 10-year clinical fall risk calculator (`hub/frax_risk.py`), proactive alert dispatch in `DualFusionEngine`, and real-time Mobility & Risk HUD (`hub/dashboard/static/mobility.html`).
 17. **Multi-Modal Video-Free 3D Pose Estimation (v3.9.0)**: RANSAC-based 5-segment radar point cloud skeleton fitter (`hub/skeleton_fitter.py`), joint angle estimator for trunk inclination & knee flexion (`hub/joint_angles.py`), 5-class fall biomechanics trajectory classifier (`hub/biomechanics_classifier.py`), and real-time 3D Pose Visualizer HUD (`hub/dashboard/static/pose.html`).
 18. **Federated Learning & Privacy-Preserving Model Training (v4.0.0)**: Differential Privacy Gradient Sanitizer (`hub/dp_trainer.py`) with DP-SGD gradient clipping and calibrated Gaussian noise, FedAvg Aggregation Server & Client (`hub/federated_server.py`, `hub/federated_client.py`), Per-Site Model Personalization Head (`hub/personalization_layer.py`), and Federated Training HUD (`hub/dashboard/static/federated.html`).
-19. **Detailed Audit & Technical Findings**: Consult [**`SYSTEM_AUDIT_AND_FINDINGS.md`**](SYSTEM_AUDIT_AND_FINDINGS.md) for the comprehensive living engineering log, physics calculations, FMEA edge cases, and architectural benchmarks.
+19. **Production Kubernetes & Helm Chart Deployment (v4.1.0)**: Production Helm chart (`helm/fall-detection-hub/`) with HPA autoscaling, Prometheus metrics exporter (`hub/metrics.py`), Grafana observability HUD (`grafana/dashboards/fall_detection.json`), GitHub Actions CD pipeline (`.github/workflows/release.yml`), and Kubernetes readiness/liveness self-tests (`/health`, `/api/diagnostics/health`).
+20. **Detailed Audit & Technical Findings**: Consult [**`SYSTEM_AUDIT_AND_FINDINGS.md`**](SYSTEM_AUDIT_AND_FINDINGS.md) for the comprehensive living engineering log, physics calculations, FMEA edge cases, and architectural benchmarks.
 
 
 ---
@@ -273,7 +274,11 @@ Run the comprehensive test suite covering signal processing, ML classification, 
 pytest -v tests/
 ```
 
-Test coverage (345 passing tests, 7 skipped):
+Test coverage (367 passing tests, 8 skipped):
+- `test_helm_chart.py`: Helm chart structure, values, template validation, and helm linting.
+- `test_metrics.py`: Prometheus metrics exposition, counter increments, gauge updates, and latency histograms.
+- `test_ci_config.py`: GitHub Actions CD release workflow validation and SemVer tagging.
+- `test_k8s_probes.py`: Kubernetes readiness (/health) and liveness (/api/diagnostics/health) probe performance and error responses.
 - `test_dp_trainer.py`: DP-SGD gradient clipping (L2 <= 1.0), Gaussian noise addition (sigma = 1.10), and Rényi DP privacy budget accountant.
 - `test_federated_learning.py`: FedAvg weighted aggregation, participant thresholding, weight broadcast, and client registry synchronization.
 - `test_personalization_layer.py`: 2-layer MLP adaptation head, frozen base model weights, and local distribution shift adaptation.

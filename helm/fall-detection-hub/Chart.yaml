@@ -1,0 +1,19 @@
+apiVersion: v2
+name: fall-detection-hub
+description: Production Helm chart for Multi-Modal Device-Free Fall Detection Hub SaMD
+type: application
+version: 4.1.0
+appVersion: "4.1.0"
+maintainers:
+  - name: ard12
+    email: contact@falldetection.internal
+keywords:
+  - fall-detection
+  - healthcare
+  - samd
+  - esp32
+  - mmwave
+  - csi
+home: https://github.com/ard12/Fall_Detection
+sources:
+  - https://github.com/ard12/Fall_Detection

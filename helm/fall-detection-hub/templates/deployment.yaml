@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "fall-detection-hub.fullname" . }}
+  labels:
+    {{- include "fall-detection-hub.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "fall-detection-hub.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- toYaml .Values.podAnnotations | nindent 8 }}
+      labels:
+        {{- include "fall-detection-hub.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "fall-detection-hub.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.httpPort }}
+              protocol: TCP
+            - name: csi-udp
+              containerPort: {{ .Values.service.csiUdpPort }}
+              protocol: UDP
+            - name: radar-udp
+              containerPort: {{ .Values.service.radarUdpPort }}
+              protocol: UDP
+          env:
+            - name: FALL_DETECT_MULTI_ROOM
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "fall-detection-hub.fullname" . }}-config
+                  key: multiRoom
+            - name: FALL_DETECT_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "fall-detection-hub.fullname" . }}-config
+                  key: logLevel
+            - name: FHIR_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "fall-detection-hub.fullname" . }}-secret
+                  key: fhirMasterKey
+            - name: CLOUD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "fall-detection-hub.fullname" . }}-secret
+                  key: cloudApiKey
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            {{- if .Values.persistence.enabled }}
+            - name: models-storage
+              mountPath: {{ .Values.persistence.mountPath }}
+            {{- end }}
+      volumes:
+        {{- if .Values.persistence.enabled }}
+        - name: models-storage
+          persistentVolumeClaim:
+            claimName: {{ include "fall-detection-hub.fullname" . }}-pvc
+        {{- end }}
