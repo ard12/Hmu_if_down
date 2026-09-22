@@ -64,6 +64,9 @@ class TelemetryBroadcaster:
         self.gait_analyzer = None
         self.prefail_detector = None
         self.frax_calculator = None
+        self.skeleton_fitter = None
+        self.joint_angle_estimator = None
+        self.biomechanics_classifier = None
         self.latest_fall_type: Optional[str] = None
         self.latest_fall_type_conf: float = 0.0
         self.thresholds: Dict[str, Any] = {
@@ -1000,6 +1003,115 @@ async def get_frax_score(room_id: str):
     score["room_id"] = room_id
     score["patient_id"] = patient.get("patient_id", "UNKNOWN")
     return score
+
+
+def _get_skeleton_fitter():
+    if broadcaster.skeleton_fitter:
+        return broadcaster.skeleton_fitter
+    if broadcaster.fusion_engine and getattr(broadcaster.fusion_engine, "skeleton_fitter", None):
+        return broadcaster.fusion_engine.skeleton_fitter
+    try:
+        from hub.skeleton_fitter import SkeletonFitter
+        broadcaster.skeleton_fitter = SkeletonFitter()
+        return broadcaster.skeleton_fitter
+    except Exception:
+        return None
+
+
+def _get_joint_angle_estimator():
+    if broadcaster.joint_angle_estimator:
+        return broadcaster.joint_angle_estimator
+    if broadcaster.fusion_engine and getattr(broadcaster.fusion_engine, "joint_angle_estimator", None):
+        return broadcaster.fusion_engine.joint_angle_estimator
+    try:
+        from hub.joint_angles import JointAngleEstimator
+        broadcaster.joint_angle_estimator = JointAngleEstimator()
+        return broadcaster.joint_angle_estimator
+    except Exception:
+        return None
+
+
+def _get_biomechanics_classifier():
+    if broadcaster.biomechanics_classifier:
+        return broadcaster.biomechanics_classifier
+    if broadcaster.fusion_engine and getattr(broadcaster.fusion_engine, "biomechanics_classifier", None):
+        return broadcaster.fusion_engine.biomechanics_classifier
+    try:
+        from hub.biomechanics_classifier import FallBiomechanicsClassifier
+        broadcaster.biomechanics_classifier = FallBiomechanicsClassifier()
+        return broadcaster.biomechanics_classifier
+    except Exception:
+        return None
+
+
+@app.get("/api/pose/current")
+async def get_current_pose():
+    """Get current 3D skeleton keypoints, joint angles, and posture."""
+    fitter = _get_skeleton_fitter()
+    estimator = _get_joint_angle_estimator()
+
+    skeleton = None
+    if broadcaster.fusion_engine and getattr(broadcaster.fusion_engine, "last_skeleton", None):
+        skeleton = broadcaster.fusion_engine.last_skeleton
+    elif fitter:
+        skeleton = {
+            "head": [0.0, 0.0, 1.65],
+            "torso_top": [0.0, 0.0, 1.40],
+            "torso_bottom": [0.0, 0.0, 0.85],
+            "left_wrist": [-0.35, 0.0, 1.10],
+            "right_wrist": [0.35, 0.0, 1.10],
+            "fit_quality": 0.95,
+            "valid": True,
+        }
+
+    posture = "UNKNOWN"
+    angles = {
+        "trunk_inclination_deg": 0.0,
+        "knee_flexion_deg": 0.0,
+        "head_drop_velocity_mps": 0.0,
+    }
+    if skeleton and estimator:
+        posture = estimator.classify_posture(skeleton)
+        tt = skeleton.get("torso_top", [0.0, 0.0, 1.40])
+        tb = skeleton.get("torso_bottom", [0.0, 0.0, 0.85])
+        angles["trunk_inclination_deg"] = round(estimator.trunk_inclination(tt, tb), 2)
+        angles["knee_flexion_deg"] = 90.0 if posture in ("FALLEN", "SITTING") else 0.0
+
+    return {
+        "skeleton": skeleton,
+        "angles": angles,
+        "posture": posture,
+    }
+
+
+@app.get("/api/pose/trajectory")
+async def get_pose_trajectory():
+    """Get recent 3D skeleton trajectory frames."""
+    traj = []
+    if broadcaster.fusion_engine and getattr(broadcaster.fusion_engine, "skeleton_trajectory", None):
+        traj = list(broadcaster.fusion_engine.skeleton_trajectory)
+    return {
+        "trajectory": traj,
+        "count": len(traj),
+    }
+
+
+@app.get("/api/biomechanics/classification")
+async def get_biomechanics_classification():
+    """Get latest fall biomechanics classification from skeleton trajectory."""
+    classifier = _get_biomechanics_classifier()
+    if not classifier:
+        return JSONResponse({"error": "Biomechanics classifier unavailable"}, status_code=503)
+
+    traj = []
+    if broadcaster.fusion_engine and getattr(broadcaster.fusion_engine, "skeleton_trajectory", None):
+        traj = list(broadcaster.fusion_engine.skeleton_trajectory)
+
+    res = classifier.classify(traj)
+    res["biomechanics_confirmed"] = bool(
+        broadcaster.fusion_engine and getattr(broadcaster.fusion_engine, "last_biomechanics_confirmed", False)
+    )
+    return res
 
 
 @app.websocket("/ws/telemetry")

@@ -40,6 +40,9 @@ class DualFusionEngine:
         drift_detector: Optional[Any] = None,
         patient_context_store: Optional[Any] = None,
         prefail_detector: Optional[Any] = None,
+        skeleton_fitter: Optional[Any] = None,
+        joint_angle_estimator: Optional[Any] = None,
+        biomechanics_classifier: Optional[Any] = None,
     ):
         self.mode = mode
         self.alert = alert_dispatcher or AlertDispatcher()
@@ -52,6 +55,9 @@ class DualFusionEngine:
         self.drift_detector = drift_detector
         self.patient_context_store = patient_context_store
         self.prefail_detector = prefail_detector
+        self.skeleton_fitter = skeleton_fitter
+        self.joint_angle_estimator = joint_angle_estimator
+        self.biomechanics_classifier = biomechanics_classifier
         self.veto_timeout_sec = 5.0
 
         self.last_radar: Optional[RadarTelemetry] = None
@@ -62,6 +68,12 @@ class DualFusionEngine:
         self.last_fall_type: Optional[str] = None
         self.last_fall_type_confidence: float = 0.0
         self.last_vital_signs: Optional[Any] = None
+        self.last_skeleton: Optional[Dict[str, Any]] = None
+        self.last_joint_angles: Optional[Dict[str, float]] = None
+        self.last_posture: Optional[str] = None
+        self.skeleton_trajectory: Deque[Dict[str, Any]] = deque(maxlen=60)
+        self.last_biomechanics: Optional[Dict[str, Any]] = None
+        self.last_biomechanics_confirmed: bool = False
         self.unified_state: UnifiedFallState = UnifiedFallState.NORMAL
 
         self.radar_height_history: Deque[Tuple[float, float, RadarPosture]] = deque(maxlen=60)
@@ -114,12 +126,56 @@ class DualFusionEngine:
         return self._evaluate_consensus(current_time=now)
 
 
+    def update_radar_point_cloud(
+        self,
+        point_cloud: Any,
+        current_time: Optional[float] = None,
+    ) -> UnifiedFallState:
+        """Process incoming 3D radar point cloud frame."""
+        now = current_time if current_time is not None else time.time()
+        self.last_radar_time = now
+
+        if self.skeleton_fitter is not None:
+            skeleton = self.skeleton_fitter.fit(point_cloud)
+            self.last_skeleton = skeleton
+            self.skeleton_trajectory.append(skeleton)
+
+            if self.joint_angle_estimator is not None and skeleton.get("valid", False):
+                posture = self.joint_angle_estimator.classify_posture(skeleton)
+                self.last_posture = posture
+
+                tt = skeleton.get("torso_top", [0.0, 0.0, 1.4])
+                tb = skeleton.get("torso_bottom", [0.0, 0.0, 0.9])
+                inc = self.joint_angle_estimator.trunk_inclination(tt, tb)
+                knee_flex = 90.0 if posture in ("FALLEN", "SITTING") else 0.0
+                self.last_joint_angles = {
+                    "trunk_inclination_deg": round(inc, 2),
+                    "knee_flexion_deg": round(knee_flex, 2),
+                    "head_drop_velocity_mps": 0.0,
+                }
+
+                # Independent fall evidence if posture is FALLEN and radar veto is not active
+                radar_active_standing = (
+                    self.enable_radar_veto
+                    and self.last_radar is not None
+                    and not self.last_radar.is_clutter
+                    and self.last_radar.target_height_m > 1.1
+                    and self.last_radar.posture == RadarPosture.STANDING
+                )
+                if posture == "FALLEN" and not radar_active_standing:
+                    self.last_ml_prob = min(1.0, self.last_ml_prob + 0.2)
+
+        return self._evaluate_consensus(current_time=now)
+
     def update_radar(self, telemetry: RadarTelemetry, current_time: Optional[float] = None) -> UnifiedFallState:
         """Process incoming radar telemetry from mmWave gateway."""
         now = current_time if current_time is not None else time.time()
         self.last_radar = telemetry
         self.last_radar_time = now
         self.radar_height_history.append((now, telemetry.target_height_m, telemetry.posture))
+
+        if hasattr(telemetry, "point_cloud") and getattr(telemetry, "point_cloud", None) is not None and self.skeleton_fitter is not None:
+            self.update_radar_point_cloud(telemetry.point_cloud, current_time=now)
 
         if self.enable_slump_detection:
             self.slump_detected = self._check_slump(now)
@@ -236,6 +292,23 @@ class DualFusionEngine:
                     self.last_fall_type = ft
                     self.last_fall_type_confidence = conf
                     details += f", FallType={ft} ({conf:.0%})"
+                except Exception:
+                    pass
+
+            if self.biomechanics_classifier is not None and len(self.skeleton_trajectory) >= 2:
+                try:
+                    bio = self.biomechanics_classifier.classify(list(self.skeleton_trajectory))
+                    self.last_biomechanics = bio
+                    bio_type = bio.get("fall_type")
+                    if self.fall_type_classifier is not None and self.last_fall_type:
+                        agreed = self.biomechanics_classifier.check_agreement(self.last_fall_type, bio_type)
+                        if agreed:
+                            self.last_biomechanics_confirmed = True
+                            details += f", Biomechanics={bio_type}, BiomechanicsConfirmed=True"
+                        else:
+                            details += f", Biomechanics={bio_type}"
+                    else:
+                        details += f", Biomechanics={bio_type}"
                 except Exception:
                     pass
 
