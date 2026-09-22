@@ -12,8 +12,9 @@ import sys
 import threading
 import time
 from typing import Any, Dict, List, Optional, Set
+import numpy as np
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -67,6 +68,8 @@ class TelemetryBroadcaster:
         self.skeleton_fitter = None
         self.joint_angle_estimator = None
         self.biomechanics_classifier = None
+        self.federated_server = None
+        self.personalization_layer = None
         self.latest_fall_type: Optional[str] = None
         self.latest_fall_type_conf: float = 0.0
         self.thresholds: Dict[str, Any] = {
@@ -1112,6 +1115,158 @@ async def get_biomechanics_classification():
         broadcaster.fusion_engine and getattr(broadcaster.fusion_engine, "last_biomechanics_confirmed", False)
     )
     return res
+
+
+def _get_federated_server():
+    if broadcaster.federated_server is not None:
+        return broadcaster.federated_server
+    try:
+        from hub.dp_trainer import DPModel
+        from hub.federated_server import FederatedAggregationServer
+        base_model = DPModel(weights=np.zeros(4), bias=0.0)
+        broadcaster.federated_server = FederatedAggregationServer(global_model=base_model, min_participants=2)
+        return broadcaster.federated_server
+    except Exception as e:
+        logger.warning(f"Failed to initialize federated server: {e}")
+        return None
+
+
+def _get_personalization_layer():
+    if broadcaster.personalization_layer is not None:
+        return broadcaster.personalization_layer
+    try:
+        from hub.personalization_layer import PersonalizationLayer
+        fed_srv = _get_federated_server()
+        base_model = fed_srv.global_model if fed_srv else None
+        broadcaster.personalization_layer = PersonalizationLayer(global_model=base_model)
+        return broadcaster.personalization_layer
+    except Exception as e:
+        logger.warning(f"Failed to initialize personalization layer: {e}")
+        return None
+
+
+@app.get("/federated")
+async def get_federated_page():
+    page_path = STATIC_DIR / "federated.html"
+    if page_path.exists():
+        return FileResponse(page_path)
+    return JSONResponse({"status": "running", "message": "Federated dashboard static file not found."})
+
+
+@app.post("/api/federated/gradients")
+async def post_federated_gradients(request: Request):
+    """Receive DP-sanitized gradients from a participating hub."""
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+
+    hub_id = data.get("hub_id")
+    gradients_raw = data.get("gradients")
+    n_samples = data.get("n_samples")
+    epsilon = data.get("epsilon")
+
+    if not hub_id or gradients_raw is None or n_samples is None or epsilon is None:
+        return JSONResponse(
+            {"error": "Missing required fields (hub_id, gradients, n_samples, epsilon)"},
+            status_code=400,
+        )
+
+    server = _get_federated_server()
+    if not server:
+        return JSONResponse({"error": "Federated server unavailable"}, status_code=503)
+
+    try:
+        gradients = [np.array(g, dtype=float) for g in gradients_raw]
+        server.receive_gradients(hub_id, gradients, int(n_samples), float(epsilon))
+        status = server.get_round_status()
+        if status["participants"] >= status["min_required"]:
+            bcast = server.broadcast_global_weights()
+            return {
+                "status": "AGGREGATED",
+                "round": bcast["round"],
+                "weights": bcast["weights"],
+                "bias": bcast["bias"],
+                "participants": status["participants"],
+            }
+        return {
+            "status": "RECEIVED",
+            "round": status["round"],
+            "participants": status["participants"],
+            "min_required": status["min_required"],
+        }
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+@app.get("/api/federated/status")
+async def get_federated_status():
+    """Get federated training round status, active hubs, and privacy budget."""
+    server = _get_federated_server()
+    if not server:
+        return JSONResponse({"error": "Federated server unavailable"}, status_code=503)
+
+    status = server.get_round_status()
+    status["history"] = server.round_history
+    status["total_epsilon"] = server.total_epsilon
+    return status
+
+
+@app.get("/api/federated/weights")
+async def get_federated_weights():
+    """Get latest aggregated global model weights and round metadata."""
+    server = _get_federated_server()
+    if not server:
+        return JSONResponse({"error": "Federated server unavailable"}, status_code=503)
+
+    weights_list = server.global_model.weights.tolist() if hasattr(server.global_model, "weights") else []
+    bias_val = float(server.global_model.bias) if hasattr(server.global_model, "bias") else 0.0
+    return {
+        "round": server.round_num,
+        "weights": weights_list,
+        "bias": bias_val,
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
+@app.post("/api/federated/personalize")
+async def post_federated_personalize(request: Request):
+    """Fit or evaluate local personalization head on local site data."""
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+
+    features = data.get("features")
+    labels = data.get("labels")
+    if features is None or labels is None:
+        return JSONResponse({"error": "Missing required fields (features, labels)"}, status_code=400)
+
+    if len(features) != len(labels) or len(features) == 0:
+        return JSONResponse({"error": "Features and labels must be non-empty and of equal length"}, status_code=400)
+
+    layer = _get_personalization_layer()
+    if not layer:
+        return JSONResponse({"error": "Personalization layer unavailable"}, status_code=503)
+
+    try:
+        X = np.array(features, dtype=float)
+        y = np.array(labels, dtype=int)
+        epochs = int(data.get("epochs", 10))
+        hidden_dim = int(data.get("hidden_dim", layer.hidden_dim))
+        layer.hidden_dim = hidden_dim
+
+        layer.fit(X, y, epochs=epochs)
+        metrics = layer.evaluate(X, y)
+        return {
+            "status": "TRAINED",
+            "metrics": metrics,
+            "hidden_dim": layer.hidden_dim,
+            "is_fitted": layer._is_fitted,
+        }
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
 
 
 @app.websocket("/ws/telemetry")

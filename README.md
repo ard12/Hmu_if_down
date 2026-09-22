@@ -27,7 +27,8 @@ An intelligent, non-invasive, privacy-preserving fall detection platform enginee
 15. **Enterprise Healthcare Deployment & Vital Signs (v3.4.0)**: Post-Fall Respiration & Vital Signs micro-Doppler Estimator (`hub/vital_signs.py`, 6-30 bpm), Automated Clinical Trial Cohort Simulator (`hub/clinical_trial_runner.py`), FDA GMLP Principle 7 Demographic Fairness & Disparity Report (`docs/CLINICAL_TRIAL_COHORT_REPORT.md`), Multi-Facility Cloud Gateway with Offline Store-and-Forward SQLite Queue (`hub/cloud_sync.py`), Continuous System Diagnostics & IEC 60601-1-8 Alarm System Watchdog Daemon (`hub/diagnostics.py`).
 16. **Fall Risk Prediction & Proactive Intervention (v3.8.0)**: Gait cadence extractor from CSI micro-Doppler spectrograms (`hub/gait_analyzer.py`), pre-fall behavioural anomaly detector scoring shuffle, velocity drop, and hesitation patterns (`hub/prefail_detector.py`), FRAX-style 10-year clinical fall risk calculator (`hub/frax_risk.py`), proactive alert dispatch in `DualFusionEngine`, and real-time Mobility & Risk HUD (`hub/dashboard/static/mobility.html`).
 17. **Multi-Modal Video-Free 3D Pose Estimation (v3.9.0)**: RANSAC-based 5-segment radar point cloud skeleton fitter (`hub/skeleton_fitter.py`), joint angle estimator for trunk inclination & knee flexion (`hub/joint_angles.py`), 5-class fall biomechanics trajectory classifier (`hub/biomechanics_classifier.py`), and real-time 3D Pose Visualizer HUD (`hub/dashboard/static/pose.html`).
-18. **Detailed Audit & Technical Findings**: Consult [**`SYSTEM_AUDIT_AND_FINDINGS.md`**](SYSTEM_AUDIT_AND_FINDINGS.md) for the comprehensive living engineering log, physics calculations, FMEA edge cases, and architectural benchmarks.
+18. **Federated Learning & Privacy-Preserving Model Training (v4.0.0)**: Differential Privacy Gradient Sanitizer (`hub/dp_trainer.py`) with DP-SGD gradient clipping and calibrated Gaussian noise, FedAvg Aggregation Server & Client (`hub/federated_server.py`, `hub/federated_client.py`), Per-Site Model Personalization Head (`hub/personalization_layer.py`), and Federated Training HUD (`hub/dashboard/static/federated.html`).
+19. **Detailed Audit & Technical Findings**: Consult [**`SYSTEM_AUDIT_AND_FINDINGS.md`**](SYSTEM_AUDIT_AND_FINDINGS.md) for the comprehensive living engineering log, physics calculations, FMEA edge cases, and architectural benchmarks.
 
 
 ---
@@ -272,7 +273,11 @@ Run the comprehensive test suite covering signal processing, ML classification, 
 pytest -v tests/
 ```
 
-Test coverage (317 passing tests, 7 skipped):
+Test coverage (345 passing tests, 7 skipped):
+- `test_dp_trainer.py`: DP-SGD gradient clipping (L2 <= 1.0), Gaussian noise addition (sigma = 1.10), and Rényi DP privacy budget accountant.
+- `test_federated_learning.py`: FedAvg weighted aggregation, participant thresholding, weight broadcast, and client registry synchronization.
+- `test_personalization_layer.py`: 2-layer MLP adaptation head, frozen base model weights, and local distribution shift adaptation.
+- `test_federated_api.py`: Federated status, weights broadcast, gradient submission, and personalization REST API endpoints.
 - `test_skeleton_fitter.py`: RANSAC 5-segment skeleton fitting, inlier ratio, and height-proportional scaling.
 - `test_joint_angles.py`: Trunk inclination (0-90 deg), knee flexion, head drop velocity, and posture classification.
 - `test_biomechanics_classifier.py`: 6-feature kinematic trajectory analysis, 5 fall mechanisms, and CSI agreement.
