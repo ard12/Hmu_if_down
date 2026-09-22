@@ -7,7 +7,7 @@
 #   make lint          Run flake8 over hub/ and tests/
 #   make release TAG=v3.0.0   Tag and push a versioned release
 
-.PHONY: all test train docker lint release clean report model-changelog
+.PHONY: all test train docker lint release clean report model-changelog sast hipaa
 
 PYTHON  ?= python
 PYTEST  ?= pytest
@@ -58,6 +58,15 @@ model-changelog:
 	$(PYTHON) docs/generate_model_changelog.py \
 	  --db models/registry.db \
 	  --output docs/MODEL_CHANGELOG.md
+
+# ── SAST Security Scan ───────────────────────────────────────────────────────
+sast:
+	$(PYTHON) -m bandit -r hub/ -ll -f json -o docs/bandit_report.json
+	$(PYTHON) docs/parse_bandit_report.py
+
+# ── HIPAA Compliance Check ──────────────────────────────────────────────────
+hipaa:
+	$(PYTHON) docs/hipaa_validator.py --output docs/HIPAA_COMPLIANCE_REPORT.md --verify
 
 # ── Clean ───────────────────────────────────────────────────────────────────
 clean:

@@ -107,15 +107,13 @@ def parse_v2_header(data: bytes) -> Optional[Dict[str, Any]]:
         room_id = data[5]
         rssi = struct.unpack("b", bytes([data[6]]))[0]
 
-        # Byte 9 indicates mesh hop count
-        hop_count = data[9] if data_len > 9 else 0
+        # Only packets with at least 24 bytes can be extended mesh-relayed packets
+        if data_len >= 24 and data[9] > 0:
+            hop_count = data[9]
+            # Reject frames that exceed maximum mesh TTL
+            if hop_count > MAX_MESH_HOPS:
+                return None
 
-        # Reject frames that exceed maximum mesh TTL
-        if hop_count > MAX_MESH_HOPS:
-            return None
-
-        if hop_count > 0:
-            # Mesh-relayed packet
             mesh_relayed = True
             # Extract 6-byte MAC / original node id from bytes 10..15 if available
             if data_len >= 16:
@@ -124,27 +122,22 @@ def parse_v2_header(data: bytes) -> Optional[Dict[str, Any]]:
             else:
                 original_node_id = str(node_id)
 
-            # Subcarrier count and timestamps in mesh format or standard
+            # Subcarrier count and timestamps in mesh format
             if data_len >= 26:
                 # Extended 26-byte mesh header
                 subcarrier_count = struct.unpack("<H", data[16:18])[0]
                 timestamp_ms = struct.unpack("<I", data[18:22])[0]
                 seq_num = struct.unpack("<I", data[22:26])[0]
                 payload_offset = 26
-            elif data_len >= 24:
+            else:
                 # 24-byte mesh header
                 timestamp_ms = struct.unpack("<I", data[16:20])[0]
                 seq_num = struct.unpack("<I", data[20:24])[0]
                 subcarrier_count = data[8]
                 payload_offset = 24
-            else:
-                # Standard 18-byte packed mesh frame
-                timestamp_ms = struct.unpack("<I", data[10:14])[0]
-                seq_num = struct.unpack("<I", data[14:18])[0]
-                subcarrier_count = data[8]
-                payload_offset = 18
         else:
-            # Standard non-mesh direct frame (hop_count == 0)
+            # Standard non-mesh direct frame (hop_count == 0 or backward-compatible 18-byte header)
+            hop_count = 0
             mesh_relayed = False
             original_node_id = str(node_id)
             subcarrier_count = struct.unpack("<H", data[8:10])[0]

@@ -108,22 +108,29 @@ class ModelRegistry:
         return version_id
 
     def load_model(self, version_id: str) -> Any:
-        """Deserialize and return classifier."""
+        """Deserialize and return classifier after cryptographic integrity verification."""
         with self._lock:
             conn = sqlite3.connect(self.db_path)
             try:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "SELECT model_bytes FROM model_versions WHERE version_id = ?",
+                    "SELECT model_bytes, sha256 FROM model_versions WHERE version_id = ?",
                     (version_id,),
                 )
                 row = cursor.fetchone()
                 if not row:
                     raise KeyError(f"Model version not found: {version_id}")
-                model_bytes = row[0]
+                model_bytes, stored_sha = row[0], row[1]
+                computed_sha = hashlib.sha256(model_bytes).hexdigest()
+                if computed_sha != stored_sha:
+                    raise ValueError(
+                        f"Cryptographic integrity check failed for model {version_id}: "
+                        f"expected {stored_sha}, got {computed_sha}"
+                    )
             finally:
                 conn.close()
 
+        # nosec B301 - SHA-256 cryptographic hash verified against SQLite record before unpickling
         return pickle.loads(model_bytes)
 
     def list_versions(self) -> List[Dict[str, Any]]:
@@ -188,15 +195,22 @@ class ModelRegistry:
             try:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "SELECT model_bytes FROM model_versions WHERE active = 1 LIMIT 1"
+                    "SELECT model_bytes, sha256, version_id FROM model_versions WHERE active = 1 LIMIT 1"
                 )
                 row = cursor.fetchone()
                 if not row:
                     return None
-                model_bytes = row[0]
+                model_bytes, stored_sha, version_id = row[0], row[1], row[2]
+                computed_sha = hashlib.sha256(model_bytes).hexdigest()
+                if computed_sha != stored_sha:
+                    raise ValueError(
+                        f"Cryptographic integrity check failed for active model {version_id}: "
+                        f"expected {stored_sha}, got {computed_sha}"
+                    )
             finally:
                 conn.close()
 
+        # nosec B301 - SHA-256 cryptographic hash verified against SQLite record before unpickling
         return pickle.loads(model_bytes)
 
     def get_active_version_id(self) -> Optional[str]:

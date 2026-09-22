@@ -60,6 +60,14 @@ class CloudSyncGateway:
         self.api_token = api_token
         self.transport_hook = transport_hook  # Optional custom transmission callable
 
+        # HIPAA §164.312(e)(1)-(2) Transmission Security: Ensure TLS / HTTPS encryption
+        if cloud_url and not (cloud_url.startswith("https://") or "127.0.0.1" in cloud_url or "localhost" in cloud_url):
+            logger.warning(
+                "HIPAA Transmission Security Warning (§164.312(e)): Non-TLS endpoint detected: %s. "
+                "Production egress requires https:// TLS encryption.",
+                cloud_url,
+            )
+
         self._lock = threading.Lock()
         self._running = False
         self._thread: Optional[threading.Thread] = None

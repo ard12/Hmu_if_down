@@ -55,12 +55,15 @@ class AuditLog:
         db_path: Path to the SQLite database file.
     """
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Optional[Path] = None, institution_id: str = "FACILITY-PRIMARY"):
         if db_path is None:
             project_root = Path(__file__).resolve().parent.parent
             db_path = project_root / "audits" / "audit.db"
 
         self.db_path = db_path
+        self.institution_id = institution_id
+        # Genesis block cryptographic root anchored to institution identity
+        self.genesis_hash = hashlib.sha256(f"GENESIS:{self.institution_id}".encode("utf-8")).hexdigest()
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
         self._init_db()
@@ -80,17 +83,24 @@ class AuditLog:
             conn.commit()
 
     @staticmethod
-    def _compute_hash(prev_hash: str, timestamp_utc: str, payload_json: str) -> str:
-        """SHA-256 of concatenated prev_hash + timestamp + payload."""
-        raw = f"{prev_hash}{timestamp_utc}{payload_json}".encode("utf-8")
+    def _compute_hash(
+        prev_hash: str,
+        timestamp_utc: str,
+        payload_json: str,
+        event_type: str = "",
+        room_id: Optional[int] = None,
+    ) -> str:
+        """SHA-256 of concatenated prev_hash + timestamp + event_type + room_id + payload."""
+        room_str = str(room_id) if room_id is not None else ""
+        raw = f"{prev_hash}|{timestamp_utc}|{event_type}|{room_str}|{payload_json}".encode("utf-8")
         return hashlib.sha256(raw).hexdigest()
 
     def _get_last_hash(self, conn: sqlite3.Connection) -> str:
-        """Return the hash of the most recent row (or 'GENESIS' if empty)."""
+        """Return the hash of the most recent row (or genesis hash if empty)."""
         row = conn.execute(
             "SELECT sha256_hash FROM audit_events ORDER BY id DESC LIMIT 1"
         ).fetchone()
-        return row["sha256_hash"] if row else "GENESIS"
+        return row["sha256_hash"] if row else self.genesis_hash
 
     # ------------------------------------------------------------------
     # Public API
@@ -128,7 +138,9 @@ class AuditLog:
         with self._lock:
             with self._connect() as conn:
                 prev_hash = self._get_last_hash(conn)
-                sha256_hash = self._compute_hash(prev_hash, timestamp_utc, payload_json)
+                sha256_hash = self._compute_hash(
+                    prev_hash, timestamp_utc, payload_json, event_type, room_id
+                )
                 cursor = conn.execute(
                     "INSERT INTO audit_events (timestamp_utc, event_type, room_id, payload_json, sha256_hash) "
                     "VALUES (?, ?, ?, ?, ?)",
@@ -207,12 +219,19 @@ class AuditLog:
         """
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT id, timestamp_utc, payload_json, sha256_hash FROM audit_events ORDER BY id ASC"
+                "SELECT id, timestamp_utc, event_type, room_id, payload_json, sha256_hash "
+                "FROM audit_events ORDER BY id ASC"
             ).fetchall()
 
-        prev_hash = "GENESIS"
+        prev_hash = self.genesis_hash
         for row in rows:
-            expected = self._compute_hash(prev_hash, row["timestamp_utc"], row["payload_json"])
+            expected = self._compute_hash(
+                prev_hash,
+                row["timestamp_utc"],
+                row["payload_json"],
+                row["event_type"],
+                row["room_id"],
+            )
             if expected != row["sha256_hash"]:
                 logger.warning("Audit chain broken at id=%d", row["id"])
                 return False, row["id"]

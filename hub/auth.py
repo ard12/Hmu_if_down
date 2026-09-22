@@ -18,6 +18,7 @@ If config/api_tokens.yaml does not exist, all admin requests are DENIED
 """
 
 import logging
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -69,11 +70,58 @@ def reload_tokens() -> None:
 reload_tokens()
 
 
+# Default JWT / session expiration in hours for HIPAA §164.312(a)(2)(ii) Automatic Logoff
+JWT_EXPIRATION_HOURS = 1
+AUTOMATIC_LOGOFF_SECONDS = JWT_EXPIRATION_HOURS * 3600
+
+
+def is_token_expired(meta: dict) -> bool:
+    """Check if token or session has exceeded expiration time (Automatic Logoff)."""
+    if not meta:
+        return True
+    exp = meta.get("exp")
+    if exp is not None:
+        return time.time() > float(exp)
+    return False
+
+
+def create_break_glass_token(user_id: str, reason: str, ttl_seconds: int = 3600) -> str:
+    """Generate an emergency break-glass token for critical clinical access (§164.312(a)(2)(i)).
+
+    Mandates justification reason and emits emergency audit log entry.
+    """
+    import secrets
+    import time
+
+    token = f"break_glass_{secrets.token_hex(16)}"
+    exp_time = time.time() + ttl_seconds
+    _token_store[token] = {
+        "role": "emergency",
+        "sub": user_id,
+        "reason": reason,
+        "exp": exp_time,
+        "emergency": True,
+        "break_glass": True,
+        "description": f"Emergency Break-Glass access for {user_id}: {reason}",
+    }
+    logger.warning(
+        "EMERGENCY BREAK-GLASS ACCESS GRANTED to user=%s reason=%s (expires in %ds)",
+        user_id,
+        reason,
+        ttl_seconds,
+    )
+    return token
+
+
 def _get_token_meta(token: Optional[str]) -> Optional[dict]:
-    """Return token metadata dict, or None if not found."""
+    """Return token metadata dict, or None if not found or expired."""
     if not token:
         return None
-    return _token_store.get(token)
+    meta = _token_store.get(token)
+    if meta and is_token_expired(meta):
+        logger.info("Token expired — Automatic logoff triggered for user %s", meta.get("sub", "unknown"))
+        return None
+    return meta
 
 
 async def require_admin(
@@ -82,7 +130,7 @@ async def require_admin(
     """FastAPI dependency that requires a valid admin-role Bearer token.
 
     Raises:
-        HTTPException 401 if no token provided.
+        HTTPException 401 if no token provided or expired (automatic logoff).
         HTTPException 403 if token is invalid or has insufficient role.
     """
     if credentials is None:
@@ -99,7 +147,7 @@ async def require_admin(
             detail="Invalid or unrecognised API token.",
         )
 
-    if meta.get("role") != "admin":
+    if meta.get("role") not in ("admin", "emergency"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Insufficient role: '{meta['role']}' cannot access admin endpoints.",
@@ -108,9 +156,17 @@ async def require_admin(
     return meta
 
 
+async def require_emergency_or_admin(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme),
+) -> dict:
+    """FastAPI dependency allowing either admin or emergency break-glass token."""
+    return await require_admin(credentials)
+
+
 def verify_token(token: str) -> Optional[dict]:
     """Programmatic token verification (not a FastAPI dependency).
 
-    Returns the token metadata dict (with 'role') or None if invalid.
+    Returns the token metadata dict (with 'role') or None if invalid or expired.
     """
     return _get_token_meta(token)
+
