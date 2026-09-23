@@ -1,17 +1,17 @@
 {
   "errors": [],
-  "generated_at": "2026-09-23T22:25:29Z",
+  "generated_at": "2026-09-23T22:44:39Z",
   "metrics": {
     "_totals": {
-      "CONFIDENCE.HIGH": 57,
+      "CONFIDENCE.HIGH": 60,
       "CONFIDENCE.LOW": 1,
-      "CONFIDENCE.MEDIUM": 7,
+      "CONFIDENCE.MEDIUM": 8,
       "CONFIDENCE.UNDEFINED": 0,
       "SEVERITY.HIGH": 0,
-      "SEVERITY.LOW": 49,
-      "SEVERITY.MEDIUM": 16,
+      "SEVERITY.LOW": 52,
+      "SEVERITY.MEDIUM": 17,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 11018,
+      "loc": 12685,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -25,6 +25,19 @@
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
       "loc": 237,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "docs/generate_model_card.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 141,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -50,7 +63,7 @@
       "SEVERITY.LOW": 2,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 253,
+      "loc": 261,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -141,7 +154,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 114,
+      "loc": 221,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -194,6 +207,19 @@
       "SEVERITY.MEDIUM": 1,
       "SEVERITY.UNDEFINED": 0,
       "loc": 357,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "hub/caregiver_api.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 1,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 1,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 212,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -310,7 +336,7 @@
       "SEVERITY.LOW": 3,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 1206,
+      "loc": 1385,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -350,6 +376,19 @@
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
       "loc": 102,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "hub/explainability.py": {
+      "CONFIDENCE.HIGH": 2,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 1,
+      "SEVERITY.MEDIUM": 1,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 236,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -548,6 +587,32 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "hub/multi_occupant.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 172,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "hub/notification_escalator.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 233,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "hub/offload_manager.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
@@ -701,6 +766,45 @@
       "SEVERITY.MEDIUM": 3,
       "SEVERITY.UNDEFINED": 0,
       "loc": 747,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "hub/simulation\\__init__.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 1,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "hub/simulation\\ray_tracer.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 217,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "hub/simulation\\synthetic_streamer.py": {
+      "CONFIDENCE.HIGH": 1,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 1,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 161,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -973,7 +1077,7 @@
       "test_name": "try_except_pass"
     },
     {
-      "code": "150                         req_map.setdefault(srs_id, []).append(ref)\n151             except Exception:\n152                 pass\n153     return req_map\n",
+      "code": "158                         req_map.setdefault(srs_id, []).append(ref)\n159             except Exception:\n160                 pass\n161     return req_map\n",
       "col_offset": 12,
       "end_col_offset": 20,
       "filename": "docs/generate_traceability.py",
@@ -984,17 +1088,17 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Try, Except, Pass detected.",
-      "line_number": 151,
+      "line_number": 159,
       "line_range": [
-        151,
-        152
+        159,
+        160
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
       "test_id": "B110",
       "test_name": "try_except_pass"
     },
     {
-      "code": "171                     test_map.setdefault(srs_id, []).append(ref)\n172         except Exception:\n173             pass\n174     return test_map\n",
+      "code": "179                     test_map.setdefault(srs_id, []).append(ref)\n180         except Exception:\n181             pass\n182     return test_map\n",
       "col_offset": 8,
       "end_col_offset": 16,
       "filename": "docs/generate_traceability.py",
@@ -1005,10 +1109,10 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Try, Except, Pass detected.",
-      "line_number": 172,
+      "line_number": 180,
       "line_range": [
-        172,
-        173
+        180,
+        181
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
       "test_id": "B110",
@@ -1180,6 +1284,31 @@
       "test_name": "hardcoded_bind_all_interfaces"
     },
     {
+      "code": "171         \"access_token\": token,\n172         \"token_type\": \"bearer\",\n173         \"expires_in\": 3600,\n174         \"caregiver_id\": caregiver_id,\n175     }\n176 \n177 \n178 @router.get(\"/alerts\")\n",
+      "col_offset": 8,
+      "end_col_offset": 20,
+      "filename": "hub/caregiver_api.py",
+      "issue_confidence": "MEDIUM",
+      "issue_cwe": {
+        "id": 259,
+        "link": "https://cwe.mitre.org/data/definitions/259.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Possible hardcoded password: 'bearer'",
+      "line_number": 172,
+      "line_range": [
+        170,
+        171,
+        172,
+        173,
+        174,
+        175
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html",
+      "test_id": "B105",
+      "test_name": "hardcoded_password_string"
+    },
+    {
       "code": "9 from pathlib import Path\n10 import pickle\n11 import sys\n",
       "col_offset": 0,
       "end_col_offset": 13,
@@ -1220,7 +1349,7 @@
       "test_name": "blacklist"
     },
     {
-      "code": "244             broadcaster.diagnostics_watcher = SystemDiagnosticsWatcher()\n245         except Exception:\n246             pass\n247 \n",
+      "code": "263             broadcaster.diagnostics_watcher = SystemDiagnosticsWatcher()\n264         except Exception:\n265             pass\n266 \n",
       "col_offset": 8,
       "end_col_offset": 16,
       "filename": "hub/dashboard\\app.py",
@@ -1231,17 +1360,17 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Try, Except, Pass detected.",
-      "line_number": 245,
+      "line_number": 264,
       "line_range": [
-        245,
-        246
+        264,
+        265
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
       "test_id": "B110",
       "test_name": "try_except_pass"
     },
     {
-      "code": "351                     meta = json.load(f)\n352             except Exception:\n353                 pass\n354 \n",
+      "code": "370                     meta = json.load(f)\n371             except Exception:\n372                 pass\n373 \n",
       "col_offset": 12,
       "end_col_offset": 20,
       "filename": "hub/dashboard\\app.py",
@@ -1252,17 +1381,17 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Try, Except, Pass detected.",
-      "line_number": 352,
+      "line_number": 371,
       "line_range": [
-        352,
-        353
+        371,
+        372
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
       "test_id": "B110",
       "test_name": "try_except_pass"
     },
     {
-      "code": "751             )\n752         except Exception:\n753             pass\n754     return {\"status\": \"ok\", \"event_id\": event_id, \"confirmed\": confirmed}\n",
+      "code": "770             )\n771         except Exception:\n772             pass\n773     return {\"status\": \"ok\", \"event_id\": event_id, \"confirmed\": confirmed}\n",
       "col_offset": 8,
       "end_col_offset": 16,
       "filename": "hub/dashboard\\app.py",
@@ -1273,10 +1402,10 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Try, Except, Pass detected.",
-      "line_number": 752,
+      "line_number": 771,
       "line_range": [
-        752,
-        753
+        771,
+        772
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
       "test_id": "B110",
@@ -1302,6 +1431,46 @@
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
       "test_id": "B110",
       "test_name": "try_except_pass"
+    },
+    {
+      "code": "14 from pathlib import Path\n15 import pickle\n16 from typing import Any, Dict, List, Optional, Tuple\n",
+      "col_offset": 0,
+      "end_col_offset": 13,
+      "filename": "hub/explainability.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 502,
+        "link": "https://cwe.mitre.org/data/definitions/502.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Consider possible security implications associated with pickle module.",
+      "line_number": 15,
+      "line_range": [
+        15
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b403-import-pickle",
+      "test_id": "B403",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "75                 with open(model_path, \"rb\") as f:\n76                     self.model = pickle.load(f)\n77                 return\n",
+      "col_offset": 33,
+      "end_col_offset": 47,
+      "filename": "hub/explainability.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 502,
+        "link": "https://cwe.mitre.org/data/definitions/502.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Pickle and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue.",
+      "line_number": 76,
+      "line_range": [
+        76
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b301-pickle",
+      "test_id": "B301",
+      "test_name": "blacklist"
     },
     {
       "code": "3 from pathlib import Path\n4 import pickle\n5 import sys\n",
@@ -2065,6 +2234,27 @@
       "line_range": [
         902,
         903
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
+      "test_id": "B110",
+      "test_name": "try_except_pass"
+    },
+    {
+      "code": "183                         sock.sendto(pkt, (self.target_host, self.csi_port))\n184                     except Exception:\n185                         pass\n186         finally:\n",
+      "col_offset": 20,
+      "end_col_offset": 28,
+      "filename": "hub/simulation\\synthetic_streamer.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Try, Except, Pass detected.",
+      "line_number": 184,
+      "line_range": [
+        184,
+        185
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
       "test_id": "B110",

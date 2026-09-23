@@ -131,35 +131,44 @@ class NotificationEscalator:
             if event.state not in (EscalationState.PENDING, EscalationState.ESCALATED):
                 continue
 
-            current_tier_idx = self.policy.tiers.index(event.current_tier)
-            if current_tier_idx < len(self.policy.timeout_per_tier_s):
-                timeout = self.policy.timeout_per_tier_s[current_tier_idx]
-                if current_time - event.last_tier_time >= timeout:
-                    next_tier_idx = current_tier_idx + 1
-                    if next_tier_idx < len(self.policy.tiers):
-                        event.current_tier = self.policy.tiers[next_tier_idx]
-                        event.state = EscalationState.ESCALATED
-                        event.last_tier_time = current_time
-                        event.history.append({
-                            "tier": event.current_tier.name,
-                            "timestamp": current_time,
-                            "action": "escalated",
-                        })
-                        self._dispatch_tier_action(event, event.current_tier)
-                        advanced_events.append(event)
+            advanced = False
+            while event.state in (EscalationState.PENDING, EscalationState.ESCALATED):
+                current_tier_idx = self.policy.tiers.index(event.current_tier)
+                if current_tier_idx < len(self.policy.timeout_per_tier_s):
+                    timeout = self.policy.timeout_per_tier_s[current_tier_idx]
+                    if current_time - event.last_tier_time >= timeout:
+                        next_tier_idx = current_tier_idx + 1
+                        if next_tier_idx < len(self.policy.tiers):
+                            event.current_tier = self.policy.tiers[next_tier_idx]
+                            event.state = EscalationState.ESCALATED
+                            event.last_tier_time += timeout
+                            event.history.append({
+                                "tier": event.current_tier.name,
+                                "timestamp": current_time,
+                                "action": "escalated",
+                            })
+                            self._dispatch_tier_action(event, event.current_tier)
+                            advanced = True
+                        else:
+                            event.state = EscalationState.EXPIRED
+                            event.history.append({
+                                "tier": event.current_tier.name,
+                                "timestamp": current_time,
+                                "action": "expired_unacknowledged",
+                            })
+                            advanced = True
+                            break
                     else:
+                        break
+                else:
+                    # Final tier exceeded
+                    if current_time - event.last_tier_time >= 60.0:
                         event.state = EscalationState.EXPIRED
-                        event.history.append({
-                            "tier": event.current_tier.name,
-                            "timestamp": current_time,
-                            "action": "expired_unacknowledged",
-                        })
-                        advanced_events.append(event)
-            else:
-                # Max tier exceeded
-                if current_time - event.last_tier_time >= 60.0:
-                    event.state = EscalationState.EXPIRED
-                    advanced_events.append(event)
+                        advanced = True
+                    break
+
+            if advanced:
+                advanced_events.append(event)
 
         return advanced_events
 

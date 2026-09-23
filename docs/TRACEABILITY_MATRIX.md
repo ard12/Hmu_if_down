@@ -58,18 +58,18 @@
 | `SRS-SEC-011` | The system shall provide automated APIs to re-derive hash chains and detect database tampering (HIPAA §164.312(c)(2)). | Security | Critical | hub/audit_log.py:AuditLog.verify_chain | tests/test_hipaa_validator.py::test_integrity_controls_safeguard_detection | ✅ Covered |
 | `SRS-SEC-012` | The system shall authenticate clinical users and EHR clients via SMART-on-FHIR OAuth2 bearer tokens (HIPAA §164.312(d)). | Security | Critical | hub/smart_fhir_client.py:SMARTFHIRClient.get_token | tests/test_smart_fhir_client.py::test_token_fetch_uses_client_credentials | ✅ Covered |
 | `SRS-SEC-013` | The system shall enforce TLS transmission encryption for all WAN and cloud gateway egress (HIPAA §164.312(e)(1)-(2)). | Security | Critical | hub/cloud_sync.py:CloudSyncGateway._send_packet | tests/test_hipaa_validator.py::test_transmission_security_safeguard_detection | ✅ Covered |
-| `SRS-SIM-001` | The system shall provide a 3D ray-tracing RF multipath room simulation engine outputting synthetic CSI and radar data. | Simulation | Major | D:/Fall_detection/hub/simulation/ray_tracer.py:14 | tests/test_ray_tracer.py::test_empty_room_produces_valid_csi | ✅ Covered |
-| `SRS-SIM-002` | The system shall stream simulated human movement trajectories as live UDP datagrams compatible with hub packet parsers. | Simulation | Major | D:/Fall_detection/hub/simulation/synthetic_streamer.py:8 | tests/test_synthetic_streamer.py::test_forward_trip_scenario_has_keyframes | ✅ Covered |
+| `SRS-SIM-001` | The system shall provide a 3D ray-tracing RF multipath room simulation engine outputting synthetic CSI and radar data. | Simulation | Essential | D:/Fall_detection/hub/simulation/ray_tracer.py:14 | tests/test_ray_tracer.py::test_empty_room_produces_valid_csi | ✅ Covered |
+| `SRS-SIM-002` | The system shall stream simulated human movement trajectories as live UDP datagrams compatible with hub packet parsers. | Simulation | Essential | D:/Fall_detection/hub/simulation/synthetic_streamer.py:8 | tests/test_synthetic_streamer.py::test_forward_trip_scenario_has_keyframes | ✅ Covered |
 | `SRS-UX-001` | The system shall implement progressive notification escalation across multiple tiers halting upon caregiver acknowledgement or patient recovery. | Usability | Critical | D:/Fall_detection/hub/notification_escalator.py:13 | tests/test_notification_escalator.py::test_initial_tier_is_silent_push | ✅ Covered |
 | `SRS-UX-002` | The system shall provide authenticated caregiver APIs for alert acknowledgement, timeline tracking, and shift triage. | Usability | Essential | D:/Fall_detection/hub/caregiver_api.py:7<br>D:/Fall_detection/hub/notification_escalator.py:14 | tests/test_caregiver_api.py::test_register_caregiver_returns_201 | ✅ Covered |
-| `SRS-UX-003` | The system shall track alarm fatigue metrics including ignored alert ratios and response time percentile distributions. | Usability | Major | *Pending* | tests/test_alert_fatigue.py::test_fatigue_score_zero_when_all_acknowledged | ✅ Covered |
-| `SRS-XAI-001` | The system shall compute local SHAP feature attributions and counterfactual explanations satisfying the local accuracy efficiency axiom. | Explainability | Major | D:/Fall_detection/hub/explainability.py:10 | tests/test_explainability.py::test_shap_explanation_has_feature_names | ✅ Covered |
-| `SRS-XAI-002` | The system shall generate automated standardized Model Cards documenting quantitative metrics, intended use, and ethical considerations. | Explainability | Major | *Pending* | tests/test_model_card.py::test_model_card_generates_markdown | ✅ Covered |
+| `SRS-UX-003` | The system shall track alarm fatigue metrics including ignored alert ratios and response time percentile distributions. | Usability | Essential | *Pending* | tests/test_alert_fatigue.py::test_fatigue_score_zero_when_all_acknowledged | ✅ Covered |
+| `SRS-XAI-001` | The system shall compute local SHAP feature attributions and counterfactual explanations satisfying the local accuracy efficiency axiom. | Explainability | Essential | D:/Fall_detection/hub/explainability.py:10 | tests/test_explainability.py::test_shap_explanation_has_feature_names | ✅ Covered |
+| `SRS-XAI-002` | The system shall generate automated standardized Model Cards documenting quantitative metrics, intended use, and ethical considerations. | Explainability | Essential | *Pending* | tests/test_model_card.py::test_model_card_generates_markdown | ✅ Covered |
 
 ## Coverage Summary by Criticality
 
 | Criticality | Total | Covered | Coverage % |
 |---|---|---|---|
 | Critical | 27 | 27 | 100.0% |
-| Essential | 19 | 19 | 100.0% |
+| Essential | 24 | 24 | 100.0% |
 | Minor | 5 | 5 | 100.0% |

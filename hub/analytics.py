@@ -181,7 +181,8 @@ class FallAnalytics:
         unacked = sum(
             1
             for e in events
-            if e.get("state") in ("expired", "pending", "escalated") or not e.get("acknowledged_at")
+            if e.get("state") in ("expired", "pending", "escalated")
+            or (e.get("state") != "acknowledged" and not e.get("acknowledged_at"))
         )
         return round(unacked / total, 3)
 
@@ -241,7 +242,9 @@ class FallAnalytics:
 
         if events is not None:
             for e in events:
-                if e.get("state") in ("expired", "pending", "escalated") or not e.get("acknowledged_at"):
+                if e.get("state") in ("expired", "pending", "escalated") or (
+                    e.get("state") != "acknowledged" and not e.get("acknowledged_at")
+                ):
                     st = e.get("start_time")
                     if st:
                         dt = datetime.fromtimestamp(st, tz=timezone.utc)
