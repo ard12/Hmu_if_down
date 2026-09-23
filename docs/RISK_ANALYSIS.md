@@ -1,7 +1,7 @@
 # ISO 14971 FMEA Risk Analysis — Fall Detection SaMD v3.x
 
 **Document ID**: RA-ISO14971-V3  
-**Total Hazards Evaluated**: 29  
+**Total Hazards Evaluated**: 30  
 **Standard**: ISO 14971:2019 (Medical devices — Application of risk management to medical devices)  
 **Risk Evaluation Matrix**: Severity (1-5) × Probability (1-5). Acceptability threshold: Residual Risk <= 4.  
 
@@ -38,6 +38,7 @@
 | `HAZ-027` | Multi-occupant fall mis-attribution causing false alarm or missed event | Caregiver bending down or entering room causes centroid cross-association or confusion | 4 | 2 | **8** | - Hungarian algorithm linear assignment on radar centroids with gating distance<br>- Per-occupant Kalman filter state estimation and trajectory smoothing<br>- Spatial Doppler gating isolating individual micro-motion profiles | **2** | ✅ YES |
 | `HAZ-028` | Synthetic data distribution shift causing poor generalization to clinical falls | Geometric ray-tracing simulator differences from complex physical multipath scattering | 4 | 2 | **8** | - Ray-tracer image source reflections up to configurable order with material loss<br>- Simulated CSI validation against empirical test suites<br>- Synthetic streamer strictly used for integration testing and pre-training augmentation | **2** | ✅ YES |
 | `HAZ-029` | Caregiver alarm fatigue causing delayed or ignored response to acute fall | Overly intrusive or non-graduated notifications causing alert desensitization | 5 | 2 | **10** | - Progressive notification escalation tiers from silent push to emergency broadcast<br>- Automated fatigue scoring and 24-hour response time percentile tracking<br>- Immediate escalation halt on caregiver acknowledgement or patient recovery | **2** | ✅ YES |
+| `HAZ-030` | Clinician misinterpretation of model opacity leading to inappropriate alert overrides | Opaque model predictions without feature attribution or counterfactual rationale | 4 | 2 | **8** | - Local SHAP waterfall feature attribution plots for individual predictions<br>- Automated Model Card documentation conforming to Google/FDA GMLP principles<br>- Counterfactual explanation engine detailing required minimal kinematic shifts | **2** | ✅ YES |
 
 ## Risk Matrix Summary
 

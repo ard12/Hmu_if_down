@@ -246,13 +246,13 @@ requirements:
   SRS-SIM-001:
     title: "The system shall provide a 3D ray-tracing RF multipath room simulation engine outputting synthetic CSI and radar data."
     category: "Simulation"
-    criticality: "Major"
+    criticality: "Essential"
     verification: "Test"
 
   SRS-SIM-002:
     title: "The system shall stream simulated human movement trajectories as live UDP datagrams compatible with hub packet parsers."
     category: "Simulation"
-    criticality: "Major"
+    criticality: "Essential"
     verification: "Test"
 
   SRS-MO-001:
@@ -276,7 +276,20 @@ requirements:
   SRS-UX-003:
     title: "The system shall track alarm fatigue metrics including ignored alert ratios and response time percentile distributions."
     category: "Usability"
-    criticality: "Major"
+    criticality: "Essential"
     verification: "Test"
+
+  SRS-XAI-001:
+    title: "The system shall compute local SHAP feature attributions and counterfactual explanations satisfying the local accuracy efficiency axiom."
+    category: "Explainability"
+    criticality: "Essential"
+    verification: "Test"
+
+  SRS-XAI-002:
+    title: "The system shall generate automated standardized Model Cards documenting quantitative metrics, intended use, and ethical considerations."
+    category: "Explainability"
+    criticality: "Essential"
+    verification: "Test"
+
 
 

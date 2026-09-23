@@ -127,6 +127,8 @@ BASELINE_TEST_MAP = {
     "SRS-UX-001": ["tests/test_notification_escalator.py::test_initial_tier_is_silent_push"],
     "SRS-UX-002": ["tests/test_caregiver_api.py::test_register_caregiver_returns_201"],
     "SRS-UX-003": ["tests/test_alert_fatigue.py::test_fatigue_score_zero_when_all_acknowledged"],
+    "SRS-XAI-001": ["tests/test_explainability.py::test_shap_explanation_has_feature_names"],
+    "SRS-XAI-002": ["tests/test_model_card.py::test_model_card_generates_markdown"],
 }
 
 

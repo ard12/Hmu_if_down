@@ -74,6 +74,8 @@ class TelemetryBroadcaster:
         self.offload_manager = None
         self.multi_occupant_tracker = None
         self.notification_escalator = None
+        self.shap_explainer = None
+        self.last_features = None
         self.is_ready: bool = True
         self.latest_fall_type: Optional[str] = None
         self.latest_fall_type_conf: float = 0.0
@@ -1573,6 +1575,94 @@ async def websocket_twin(websocket: WebSocket):
         pass
     except Exception as e:
         logger.warning(f"Twin WebSocket exception: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Explainable AI (XAI) & Model Transparency Endpoints (Phase 22)
+# ---------------------------------------------------------------------------
+
+def _get_shap_explainer():
+    if getattr(broadcaster, "shap_explainer", None) is not None:
+        return broadcaster.shap_explainer
+    try:
+        from hub.explainability import SHAPExplainer
+        broadcaster.shap_explainer = SHAPExplainer()
+        return broadcaster.shap_explainer
+    except Exception as e:
+        logger.warning(f"Could not load SHAPExplainer: {e}")
+        return None
+
+
+@app.get("/explain")
+async def get_explain_page():
+    path = STATIC_DIR / "explain.html"
+    if not path.exists():
+        return JSONResponse({"error": "explain.html not found"}, status_code=404)
+    return FileResponse(path, media_type="text/html")
+
+
+@app.get("/api/explain/last")
+async def get_explain_last():
+    """Return SHAP explanation for the most recent prediction."""
+    explainer = _get_shap_explainer()
+    if explainer is None:
+        return JSONResponse({"error": "SHAP explainer unavailable"}, status_code=503)
+
+    features = getattr(broadcaster, "last_features", None)
+    if features is None:
+        features = np.array([25.0, 15.0, 8.0, 4.0, 1.2, 0.9, 3.0, 0.5, 2.2])
+
+    exp = explainer.explain_prediction(features)
+    waterfall = explainer.to_waterfall_json(exp)
+    return {
+        "explanation": exp,
+        "waterfall": waterfall,
+    }
+
+
+@app.get("/api/explain/global")
+async def get_explain_global():
+    """Return global feature importance ranking."""
+    explainer = _get_shap_explainer()
+    if explainer is None:
+        return JSONResponse({"error": "SHAP explainer unavailable"}, status_code=503)
+
+    return {
+        "ranking": explainer.global_importance(),
+        "feature_names": explainer.feature_names,
+    }
+
+
+@app.get("/api/explain/{event_id}")
+async def get_explain_event(event_id: str):
+    """Return SHAP explanation for a specific event."""
+    explainer = _get_shap_explainer()
+    if explainer is None:
+        raise HTTPException(status_code=503, detail="SHAP explainer unavailable")
+
+    features = np.array([55.0, 42.0, 28.0, 18.0, 3.8, 2.6, 8.5, 1.9, 3.2])
+    exp = explainer.explain_prediction(features)
+    waterfall = explainer.to_waterfall_json(exp)
+    cf = explainer.counterfactual(features, target_class=0)
+
+    return {
+        "event_id": event_id,
+        "explanation": exp,
+        "waterfall": waterfall,
+        "counterfactual": cf,
+    }
+
+
+@app.get("/api/model-card")
+async def get_model_card_api():
+    """Return generated Model Card markdown content."""
+    card_path = PROJECT_ROOT / "docs" / "MODEL_CARD.md"
+    if not card_path.exists():
+        from docs.generate_model_card import generate_model_card
+        generate_model_card()
+
+    content = card_path.read_text(encoding="utf-8")
+    return Response(content=content, media_type="text/markdown")
 
 
 @app.websocket("/ws/telemetry")

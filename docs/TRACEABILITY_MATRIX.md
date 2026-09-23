@@ -1,8 +1,8 @@
 # Software Requirement Traceability Matrix (IEC 62304 / FDA SaMD)
 
 **Specification Version**: v3.3.0  
-**Total Requirements**: 54  
-**Test Coverage**: 100.0% (54/54)  
+**Total Requirements**: 56  
+**Test Coverage**: 100.0% (56/56)  
 **Critical Requirement Coverage**: 100.0% (27/27)  
 
 ## Traceability Matrix
@@ -63,6 +63,8 @@
 | `SRS-UX-001` | The system shall implement progressive notification escalation across multiple tiers halting upon caregiver acknowledgement or patient recovery. | Usability | Critical | D:/Fall_detection/hub/notification_escalator.py:13 | tests/test_notification_escalator.py::test_initial_tier_is_silent_push | ✅ Covered |
 | `SRS-UX-002` | The system shall provide authenticated caregiver APIs for alert acknowledgement, timeline tracking, and shift triage. | Usability | Essential | D:/Fall_detection/hub/caregiver_api.py:7<br>D:/Fall_detection/hub/notification_escalator.py:14 | tests/test_caregiver_api.py::test_register_caregiver_returns_201 | ✅ Covered |
 | `SRS-UX-003` | The system shall track alarm fatigue metrics including ignored alert ratios and response time percentile distributions. | Usability | Major | *Pending* | tests/test_alert_fatigue.py::test_fatigue_score_zero_when_all_acknowledged | ✅ Covered |
+| `SRS-XAI-001` | The system shall compute local SHAP feature attributions and counterfactual explanations satisfying the local accuracy efficiency axiom. | Explainability | Major | D:/Fall_detection/hub/explainability.py:10 | tests/test_explainability.py::test_shap_explanation_has_feature_names | ✅ Covered |
+| `SRS-XAI-002` | The system shall generate automated standardized Model Cards documenting quantitative metrics, intended use, and ethical considerations. | Explainability | Major | *Pending* | tests/test_model_card.py::test_model_card_generates_markdown | ✅ Covered |
 
 ## Coverage Summary by Criticality
 

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explainable AI & Model Transparency HUD</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        body { margin: 0; background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 14px; margin-bottom: 24px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 20px; }
+        .card-val { font-size: 28px; font-weight: bold; color: #38bdf8; }
+        .card-lbl { font-size: 12px; color: #94a3b8; text-transform: uppercase; margin-top: 4px; }
+        .slider-group { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+        .slider-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h2>Explainable AI (XAI) & Transparency HUD</h2>
+            <div style="font-size: 13px; color: #94a3b8;">FDA GMLP Principle 3 & EU AI Act Article 13 Compliant</div>
+        </div>
+        <a href="/api/model-card" target="_blank" style="background: #2563eb; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 500;">View Model Card (MD)</a>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h3>SHAP Local Feature Attribution (Waterfall)</h3>
+            <div style="display: flex; gap: 16px; margin-bottom: 12px;">
+                <div>
+                    <div class="card-val" id="predProba">0.0%</div>
+                    <div class="card-lbl">Predicted P(Fall)</div>
+                </div>
+                <div>
+                    <div class="card-val" id="baseVal" style="color: #94a3b8;">0.0%</div>
+                    <div class="card-lbl">Base Probability</div>
+                </div>
+            </div>
+            <canvas id="waterfallChart" height="240"></canvas>
+        </div>
+
+        <div class="card">
+            <h3>Global Feature Importance Ranking</h3>
+            <div class="card-lbl" style="margin-bottom: 12px;">Mean absolute SHAP contribution across trial benchmarks</div>
+            <canvas id="importanceChart" height="240"></canvas>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Counterfactual Explanation ("What-If" Analysis)</h3>
+        <p style="font-size: 13px; color: #94a3b8;">Shows what features would need to change for an alert to flip classification.</p>
+        <div id="counterfactualOutput" style="font-family: monospace; font-size: 13px; background: #0f172a; padding: 12px; border-radius: 6px;">
+            Loading counterfactuals...
+        </div>
+    </div>
+
+    <script>
+        let waterfallChart = null;
+        let importanceChart = null;
+
+        async function loadXAI() {
+            try {
+                // Load Local explanation
+                const lastRes = await fetch('/api/explain/last');
+                if (lastRes.ok) {
+                    const data = await lastRes.json();
+                    document.getElementById('predProba').innerText = (data.explanation.prediction_proba * 100).toFixed(1) + '%';
+                    document.getElementById('baseVal').innerText = (data.explanation.base_value * 100).toFixed(1) + '%';
+
+                    const bars = data.waterfall.bars;
+                    const labels = bars.map(b => b.feature);
+                    const values = bars.map(b => b.contribution);
+                    const colors = bars.map(b => b.direction === 'positive' ? '#ef4444' : '#22c55e');
+
+                    const ctx1 = document.getElementById('waterfallChart').getContext('2d');
+                    if (!waterfallChart) {
+                        waterfallChart = new Chart(ctx1, {
+                            type: 'bar',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: 'SHAP Contribution',
+                                    data: values,
+                                    backgroundColor: colors
+                                }]
+                            },
+                            options: { indexAxis: 'y', responsive: true }
+                        });
+                    }
+                }
+
+                // Load Global importance
+                const globRes = await fetch('/api/explain/global');
+                if (globRes.ok) {
+                    const globData = await globRes.json();
+                    const gLabels = Object.keys(globData.ranking);
+                    const gValues = Object.values(globData.ranking);
+
+                    const ctx2 = document.getElementById('importanceChart').getContext('2d');
+                    if (!importanceChart) {
+                        importanceChart = new Chart(ctx2, {
+                            type: 'bar',
+                            data: {
+                                labels: gLabels,
+                                datasets: [{
+                                    label: 'Mean |SHAP|',
+                                    data: gValues,
+                                    backgroundColor: '#38bdf8'
+                                }]
+                            },
+                            options: { indexAxis: 'y', responsive: true }
+                        });
+                    }
+                }
+
+                // Counterfactual for recent event
+                const evtRes = await fetch('/api/explain/EVT-RECENT');
+                if (evtRes.ok) {
+                    const evtData = await evtRes.json();
+                    const cf = evtData.counterfactual;
+                    document.getElementById('counterfactualOutput').innerHTML = 
+                        'Original Class: ' + (cf.original_prediction === 1 ? 'FALL' : 'ADL') + 
+                        ' -> Counterfactual: ' + (cf.counterfactual_prediction === 1 ? 'FALL' : 'ADL') + '<br>' +
+                        'Minimal Changes Required: ' + JSON.stringify(cf.changes, null, 2);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        loadXAI();
+    </script>
+</body>
+</html>

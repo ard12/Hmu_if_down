@@ -379,6 +379,20 @@ hazards:
     residual_risk: 2
     acceptable: true
 
+  HAZ-030:
+    hazard: "Clinician misinterpretation of model opacity leading to inappropriate alert overrides"
+    cause: "Opaque model predictions without feature attribution or counterfactual rationale"
+    severity: 4
+    probability: 2
+    risk_before: 8
+    controls:
+      - "Local SHAP waterfall feature attribution plots for individual predictions"
+      - "Automated Model Card documentation conforming to Google/FDA GMLP principles"
+      - "Counterfactual explanation engine detailing required minimal kinematic shifts"
+    residual_risk: 2
+    acceptable: true
+
+
 
 
 
