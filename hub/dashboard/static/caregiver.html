@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Caregiver Alert Triage & Fatigue Monitor</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        body { margin: 0; background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; padding: 16px; max-width: 800px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 12px; margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 16px; }
+        .card-val { font-size: 26px; font-weight: bold; color: #38bdf8; }
+        .card-lbl { font-size: 12px; color: #94a3b8; text-transform: uppercase; margin-top: 4px; }
+        .alert-item { background: #1e293b; border-left: 4px solid #ef4444; border-radius: 6px; padding: 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .alert-item.acked { border-left-color: #22c55e; opacity: 0.7; }
+        .btn-ack { background: #22c55e; color: #022c22; font-weight: bold; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+        .btn-ack:hover { background: #16a34a; }
+        .chart-box { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>Caregiver Alert Triage & UX</h2>
+        <div id="userBadge" style="font-size: 13px; color: #94a3b8;">Active Shift</div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <div class="card-val" id="fatigueScore">0.0%</div>
+            <div class="card-lbl">Alarm Fatigue Score</div>
+        </div>
+        <div class="card">
+            <div class="card-val" id="medianResponse">0.0s</div>
+            <div class="card-lbl">Median Response Time (P50)</div>
+        </div>
+        <div class="card">
+            <div class="card-val" id="activeAlertsCount">0</div>
+            <div class="card-lbl">Active Unacked Alerts</div>
+        </div>
+    </div>
+
+    <div class="chart-box">
+        <h3>24-Hour Alarm Distribution & Fatigue Window</h3>
+        <canvas id="fatigueChart" height="120"></canvas>
+    </div>
+
+    <div class="card">
+        <h3>Live Fall Escalation Queue</h3>
+        <div id="alertList">
+            <div style="color: #64748b; font-size: 14px;">No active alerts at this time.</div>
+        </div>
+    </div>
+
+    <script>
+        let chart = null;
+
+        async function fetchFatigue() {
+            try {
+                const res = await fetch('/api/caregiver/fatigue');
+                if (!res.ok) return;
+                const data = await res.json();
+                document.getElementById('fatigueScore').innerText = (data.fatigue_score * 100).toFixed(1) + '%';
+                if (data.response_time_distribution) {
+                    document.getElementById('medianResponse').innerText = (data.response_time_distribution.p50_s || 0).toFixed(1) + 's';
+                }
+
+                // Render chart
+                if (data.time_of_day_fatigue) {
+                    const labels = data.time_of_day_fatigue.map(d => d.hour + ':00');
+                    const counts = data.time_of_day_fatigue.map(d => d.unacknowledged_count);
+                    if (!chart) {
+                        const ctx = document.getElementById('fatigueChart').getContext('2d');
+                        chart = new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: 'Ignored / Expired Alerts',
+                                    data: counts,
+                                    backgroundColor: '#ef4444'
+                                }]
+                            },
+                            options: { responsive: true, scales: { y: { beginAtZero: true } } }
+                        });
+                    } else {
+                        chart.data.labels = labels;
+                        chart.data.datasets[0].data = counts;
+                        chart.update();
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        fetchFatigue();
+        setInterval(fetchFatigue, 5000);
+    </script>
+</body>
+</html>

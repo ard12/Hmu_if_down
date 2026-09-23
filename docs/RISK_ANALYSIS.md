@@ -1,7 +1,7 @@
 # ISO 14971 FMEA Risk Analysis — Fall Detection SaMD v3.x
 
 **Document ID**: RA-ISO14971-V3  
-**Total Hazards Evaluated**: 28  
+**Total Hazards Evaluated**: 29  
 **Standard**: ISO 14971:2019 (Medical devices — Application of risk management to medical devices)  
 **Risk Evaluation Matrix**: Severity (1-5) × Probability (1-5). Acceptability threshold: Residual Risk <= 4.  
 
@@ -37,6 +37,7 @@
 | `HAZ-026` | Edge quantization accuracy degradation causing false negatives | Severe precision loss during 8-bit integer quantization or INT8 calibration mismatch | 4 | 2 | **8** | - QuantisationReport automated accuracy validation against empirical test sets<br>- Dual execution fallback to full precision ONNX CPU or scikit-learn models<br>- Dynamic offloading manager monitoring real-time SLA and provider health | **3** | ✅ YES |
 | `HAZ-027` | Multi-occupant fall mis-attribution causing false alarm or missed event | Caregiver bending down or entering room causes centroid cross-association or confusion | 4 | 2 | **8** | - Hungarian algorithm linear assignment on radar centroids with gating distance<br>- Per-occupant Kalman filter state estimation and trajectory smoothing<br>- Spatial Doppler gating isolating individual micro-motion profiles | **2** | ✅ YES |
 | `HAZ-028` | Synthetic data distribution shift causing poor generalization to clinical falls | Geometric ray-tracing simulator differences from complex physical multipath scattering | 4 | 2 | **8** | - Ray-tracer image source reflections up to configurable order with material loss<br>- Simulated CSI validation against empirical test suites<br>- Synthetic streamer strictly used for integration testing and pre-training augmentation | **2** | ✅ YES |
+| `HAZ-029` | Caregiver alarm fatigue causing delayed or ignored response to acute fall | Overly intrusive or non-graduated notifications causing alert desensitization | 5 | 2 | **10** | - Progressive notification escalation tiers from silent push to emergency broadcast<br>- Automated fatigue scoring and 24-hour response time percentile tracking<br>- Immediate escalation halt on caregiver acknowledgement or patient recovery | **2** | ✅ YES |
 
 ## Risk Matrix Summary
 

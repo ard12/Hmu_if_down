@@ -124,6 +124,9 @@ BASELINE_TEST_MAP = {
     "SRS-SIM-001": ["tests/test_ray_tracer.py::test_empty_room_produces_valid_csi"],
     "SRS-SIM-002": ["tests/test_synthetic_streamer.py::test_forward_trip_scenario_has_keyframes"],
     "SRS-MO-001": ["tests/test_multi_occupant.py::test_two_occupants_tracked_separately"],
+    "SRS-UX-001": ["tests/test_notification_escalator.py::test_initial_tier_is_silent_push"],
+    "SRS-UX-002": ["tests/test_caregiver_api.py::test_register_caregiver_returns_201"],
+    "SRS-UX-003": ["tests/test_alert_fatigue.py::test_fatigue_score_zero_when_all_acknowledged"],
 }
 
 

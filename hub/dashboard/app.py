@@ -73,6 +73,7 @@ class TelemetryBroadcaster:
         self.tensorrt_runner = None
         self.offload_manager = None
         self.multi_occupant_tracker = None
+        self.notification_escalator = None
         self.is_ready: bool = True
         self.latest_fall_type: Optional[str] = None
         self.latest_fall_type_conf: float = 0.0
@@ -189,6 +190,13 @@ app = FastAPI(title="Fall Detection Telemetry HUD", docs_url="/api/docs", lifesp
 # Mount static web assets
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
+try:
+    from hub.caregiver_api import router as caregiver_router
+    app.include_router(caregiver_router)
+except Exception as e:
+    logger.warning(f"Could not load caregiver router: {e}")
+
+
 
 @app.get("/")
 async def get_index():
@@ -196,6 +204,14 @@ async def get_index():
     if index_path.exists():
         return FileResponse(index_path)
     return JSONResponse({"status": "running", "message": "Dashboard static files not found."})
+
+
+@app.get("/caregiver")
+async def get_caregiver_page():
+    path = STATIC_DIR / "caregiver.html"
+    if not path.exists():
+        return JSONResponse({"error": "caregiver.html not found"}, status_code=404)
+    return FileResponse(path, media_type="text/html")
 
 
 @app.get("/api/status")
@@ -1452,6 +1468,20 @@ def _get_multi_occupant_tracker():
         return broadcaster.multi_occupant_tracker
     except Exception as e:
         logger.warning(f"Could not load MultiOccupantTracker: {e}")
+        return None
+
+
+def _get_notification_escalator():
+    if broadcaster.notification_escalator is not None:
+        return broadcaster.notification_escalator
+    try:
+        from hub.notification_escalator import NotificationEscalator
+        broadcaster.notification_escalator = NotificationEscalator(
+            alert_dispatcher=getattr(broadcaster, "alert_dispatcher", None)
+        )
+        return broadcaster.notification_escalator
+    except Exception as e:
+        logger.warning(f"Could not load NotificationEscalator: {e}")
         return None
 
 

@@ -140,3 +140,119 @@ class FallAnalytics:
             "cancellation_rate": self.cancellation_rate(),
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }
+
+    def alert_fatigue_score(
+        self,
+        caregiver_id: Optional[str] = None,
+        days: int = 30,
+        events: Optional[List[Dict[str, Any]]] = None,
+    ) -> float:
+        """
+        Calculate caregiver alarm fatigue score (0.0 to 1.0).
+        Ratio of unacknowledged / expired or ignored alerts to total alerts.
+        """
+        if events is None:
+            all_alerts = self.audit_log.query(event_type="ALERT_DISPATCHED", limit=10000)
+            acks = self.audit_log.query(event_type="ALERT_ACKNOWLEDGED", limit=10000)
+            if not all_alerts:
+                falls = self.audit_log.query(event_type="FALL_CONFIRMED", limit=10000)
+                if not falls:
+                    return 0.0
+                cancelled = self.audit_log.query(event_type="FALL_CANCELLED", limit=10000)
+                return round(min(1.0, len(cancelled) / max(1, len(falls))), 3)
+            total = len(all_alerts)
+            ack_count = len(acks)
+            ignored = max(0, total - ack_count)
+            return round(ignored / total, 3)
+
+        if not events:
+            return 0.0
+
+        if caregiver_id:
+            events = [
+                e
+                for e in events
+                if e.get("caregiver_id") == caregiver_id or e.get("acknowledged_by") == caregiver_id
+            ]
+            if not events:
+                return 0.0
+
+        total = len(events)
+        unacked = sum(
+            1
+            for e in events
+            if e.get("state") in ("expired", "pending", "escalated") or not e.get("acknowledged_at")
+        )
+        return round(unacked / total, 3)
+
+    def response_time_distribution(
+        self,
+        caregiver_id: Optional[str] = None,
+        days: int = 30,
+        events: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, float]:
+        """Compute P25, P50, P75, P95 response times in seconds."""
+        import numpy as np
+
+        times: List[float] = []
+        if events is not None:
+            for e in events:
+                if caregiver_id and e.get("acknowledged_by") != caregiver_id:
+                    continue
+                rt = e.get("response_time_s")
+                if rt is not None and rt >= 0:
+                    times.append(float(rt))
+        else:
+            acks = self.audit_log.query(event_type="ALERT_ACKNOWLEDGED", limit=10000)
+            for a in acks:
+                p = a.get("payload", {})
+                if caregiver_id and p.get("caregiver_id") != caregiver_id:
+                    continue
+                rt = p.get("response_time_s")
+                if rt is not None:
+                    times.append(float(rt))
+
+        if not times:
+            return {
+                "p25_s": 0.0,
+                "p50_s": 0.0,
+                "p75_s": 0.0,
+                "p95_s": 0.0,
+                "mean_s": 0.0,
+                "sample_count": 0,
+            }
+
+        arr = np.array(times, dtype=np.float64)
+        return {
+            "p25_s": round(float(np.percentile(arr, 25)), 2),
+            "p50_s": round(float(np.percentile(arr, 50)), 2),
+            "p75_s": round(float(np.percentile(arr, 75)), 2),
+            "p95_s": round(float(np.percentile(arr, 95)), 2),
+            "mean_s": round(float(np.mean(arr)), 2),
+            "sample_count": len(times),
+        }
+
+    def time_of_day_fatigue(
+        self, days: int = 30, events: Optional[List[Dict[str, Any]]] = None
+    ) -> List[Dict[str, Any]]:
+        """Return 24-bucket histogram (0..23) of ignored/expired alerts."""
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        hourly_counts = {h: 0 for h in range(24)}
+
+        if events is not None:
+            for e in events:
+                if e.get("state") in ("expired", "pending", "escalated") or not e.get("acknowledged_at"):
+                    st = e.get("start_time")
+                    if st:
+                        dt = datetime.fromtimestamp(st, tz=timezone.utc)
+                        if dt >= cutoff:
+                            hourly_counts[dt.hour] += 1
+        else:
+            expired = self.audit_log.query(event_type="ALERT_EXPIRED", limit=10000)
+            for ex in expired:
+                dt = self._parse_timestamp(ex.get("timestamp_utc", ""))
+                if dt and dt >= cutoff:
+                    hourly_counts[dt.hour] += 1
+
+        return [{"hour": h, "unacknowledged_count": hourly_counts[h]} for h in range(24)]
+

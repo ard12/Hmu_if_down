@@ -366,5 +366,19 @@ hazards:
     residual_risk: 2
     acceptable: true
 
+  HAZ-029:
+    hazard: "Caregiver alarm fatigue causing delayed or ignored response to acute fall"
+    cause: "Overly intrusive or non-graduated notifications causing alert desensitization"
+    severity: 5
+    probability: 2
+    risk_before: 10
+    controls:
+      - "Progressive notification escalation tiers from silent push to emergency broadcast"
+      - "Automated fatigue scoring and 24-hour response time percentile tracking"
+      - "Immediate escalation halt on caregiver acknowledgement or patient recovery"
+    residual_risk: 2
+    acceptable: true
+
+
 
 

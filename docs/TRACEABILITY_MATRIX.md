@@ -1,9 +1,9 @@
 # Software Requirement Traceability Matrix (IEC 62304 / FDA SaMD)
 
 **Specification Version**: v3.3.0  
-**Total Requirements**: 51  
-**Test Coverage**: 100.0% (51/51)  
-**Critical Requirement Coverage**: 100.0% (26/26)  
+**Total Requirements**: 54  
+**Test Coverage**: 100.0% (54/54)  
+**Critical Requirement Coverage**: 100.0% (27/27)  
 
 ## Traceability Matrix
 
@@ -60,11 +60,14 @@
 | `SRS-SEC-013` | The system shall enforce TLS transmission encryption for all WAN and cloud gateway egress (HIPAA §164.312(e)(1)-(2)). | Security | Critical | hub/cloud_sync.py:CloudSyncGateway._send_packet | tests/test_hipaa_validator.py::test_transmission_security_safeguard_detection | ✅ Covered |
 | `SRS-SIM-001` | The system shall provide a 3D ray-tracing RF multipath room simulation engine outputting synthetic CSI and radar data. | Simulation | Major | D:/Fall_detection/hub/simulation/ray_tracer.py:14 | tests/test_ray_tracer.py::test_empty_room_produces_valid_csi | ✅ Covered |
 | `SRS-SIM-002` | The system shall stream simulated human movement trajectories as live UDP datagrams compatible with hub packet parsers. | Simulation | Major | D:/Fall_detection/hub/simulation/synthetic_streamer.py:8 | tests/test_synthetic_streamer.py::test_forward_trip_scenario_has_keyframes | ✅ Covered |
+| `SRS-UX-001` | The system shall implement progressive notification escalation across multiple tiers halting upon caregiver acknowledgement or patient recovery. | Usability | Critical | D:/Fall_detection/hub/notification_escalator.py:13 | tests/test_notification_escalator.py::test_initial_tier_is_silent_push | ✅ Covered |
+| `SRS-UX-002` | The system shall provide authenticated caregiver APIs for alert acknowledgement, timeline tracking, and shift triage. | Usability | Essential | D:/Fall_detection/hub/caregiver_api.py:7<br>D:/Fall_detection/hub/notification_escalator.py:14 | tests/test_caregiver_api.py::test_register_caregiver_returns_201 | ✅ Covered |
+| `SRS-UX-003` | The system shall track alarm fatigue metrics including ignored alert ratios and response time percentile distributions. | Usability | Major | *Pending* | tests/test_alert_fatigue.py::test_fatigue_score_zero_when_all_acknowledged | ✅ Covered |
 
 ## Coverage Summary by Criticality
 
 | Criticality | Total | Covered | Coverage % |
 |---|---|---|---|
-| Critical | 26 | 26 | 100.0% |
-| Essential | 18 | 18 | 100.0% |
+| Critical | 27 | 27 | 100.0% |
+| Essential | 19 | 19 | 100.0% |
 | Minor | 5 | 5 | 100.0% |

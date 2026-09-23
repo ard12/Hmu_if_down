@@ -261,3 +261,22 @@ requirements:
     criticality: "Critical"
     verification: "Test"
 
+  SRS-UX-001:
+    title: "The system shall implement progressive notification escalation across multiple tiers halting upon caregiver acknowledgement or patient recovery."
+    category: "Usability"
+    criticality: "Critical"
+    verification: "Test"
+
+  SRS-UX-002:
+    title: "The system shall provide authenticated caregiver APIs for alert acknowledgement, timeline tracking, and shift triage."
+    category: "Usability"
+    criticality: "Essential"
+    verification: "Test"
+
+  SRS-UX-003:
+    title: "The system shall track alarm fatigue metrics including ignored alert ratios and response time percentile distributions."
+    category: "Usability"
+    criticality: "Major"
+    verification: "Test"
+
+
