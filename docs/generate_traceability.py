@@ -52,6 +52,19 @@ BASELINE_IMPL_MAP = {
     "SRS-030": ["hub/dashboard/app.py:post_thresholds"],
     "SRS-031": ["hub/fusion_engine.py:DualFusionEngine._evaluate_consensus"],
     "SRS-032": ["hub/fusion_engine.py:DualFusionEngine.process_csi_features"],
+    "SRS-SEC-001": ["hub/auth.py:verify_token"],
+    "SRS-SEC-002": ["hub/auth.py:create_break_glass_token"],
+    "SRS-SEC-003": ["hub/auth.py:is_token_expired"],
+    "SRS-SEC-004": ["hub/model_registry.py:ModelRegistry.load_model"],
+    "SRS-SEC-005": ["helm/fall-detection-hub/templates/ingress.yaml:Ingress"],
+    "SRS-SEC-006": ["hub/alert_dispatcher.py:AlertDispatcher._post_webhook"],
+    "SRS-SEC-007": ["hub/audit_log.py:AuditLog.query"],
+    "SRS-SEC-008": ["hub/fhir_lake.py:FHIRDataLake.write_resource"],
+    "SRS-SEC-009": ["hub/audit_log.py:AuditLog.append"],
+    "SRS-SEC-010": ["hub/audit_log.py:AuditLog._compute_hash"],
+    "SRS-SEC-011": ["hub/audit_log.py:AuditLog.verify_chain"],
+    "SRS-SEC-012": ["hub/smart_fhir_client.py:SMARTFHIRClient.get_token"],
+    "SRS-SEC-013": ["hub/cloud_sync.py:CloudSyncGateway._send_packet"],
 }
 
 BASELINE_TEST_MAP = {
@@ -88,6 +101,20 @@ BASELINE_TEST_MAP = {
     "SRS-030": ["tests/test_dashboard.py::test_dashboard_thresholds_api"],
     "SRS-031": ["tests/test_bayesian_classifier.py::test_graduated_severity_confirmed_threshold"],
     "SRS-032": ["tests/test_integration.py::test_fusion_csi_only_mode"],
+    "SRS-SEC-001": ["tests/test_hipaa_validator.py::test_access_control_safeguard_detection"],
+    "SRS-SEC-002": ["tests/test_hipaa_validator.py::test_break_glass_token_functionality"],
+    "SRS-SEC-003": ["tests/test_hipaa_validator.py::test_break_glass_token_functionality"],
+    "SRS-SEC-004": ["tests/test_sast.py::test_model_registry_tamper_prevention"],
+    "tests/test_helm_chart.py::test_ingress_template": ["SRS-SEC-005"],
+    "SRS-SEC-005": ["tests/test_helm_chart.py::test_ingress_template"],
+    "SRS-SEC-006": ["tests/test_alert_dispatcher.py::test_alert_dispatcher_handles_network_failure"],
+    "SRS-SEC-007": ["tests/test_audit_log.py::test_audit_log_query_by_event_type"],
+    "SRS-SEC-008": ["tests/test_fhir_lake.py::test_write_and_read_patient_round_trip"],
+    "SRS-SEC-009": ["tests/test_audit_tamper_campaign.py::test_campaign_intact_chain"],
+    "SRS-SEC-010": ["tests/test_audit_tamper_campaign.py::test_campaign_payload_modification"],
+    "SRS-SEC-011": ["tests/test_hipaa_validator.py::test_integrity_controls_safeguard_detection"],
+    "SRS-SEC-012": ["tests/test_smart_fhir_client.py::test_token_fetch_uses_client_credentials"],
+    "SRS-SEC-013": ["tests/test_hipaa_validator.py::test_transmission_security_safeguard_detection"],
 }
 
 

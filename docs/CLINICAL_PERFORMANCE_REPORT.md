@@ -1,8 +1,8 @@
 # Clinical Performance Validation Report (FDA SaMD / IEC 62304)
 
 **Document ID**: CPR-SAMD-V3  
-**Software Version**: v3.3.0 (Git commit: `50f01f9`)  
-**Report Generated**: 2026-09-19 21:53:47 UTC  
+**Software Version**: v3.3.0 (Git commit: `06c0daa`)  
+**Report Generated**: 2026-09-23 09:02:36 UTC  
 **Compliance Standards**: FDA Class II SaMD, IEC 62304 Class B/C, ISO 14971:2019  
 
 ---

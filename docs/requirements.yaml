@@ -162,3 +162,68 @@ requirements:
     category: "Safety / Risk Control"
     criticality: "Critical"
     verification: "Test"
+  SRS-SEC-001:
+    title: "The system shall enforce unique user identification via cryptographically signed JWT tokens and RBAC roles (HIPAA §164.312(a)(1))."
+    category: "Security"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-SEC-002:
+    title: "The system shall provide emergency break-glass role elevation with mandatory audit logging and expiring tokens (HIPAA §164.312(a)(2)(i))."
+    category: "Security"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-SEC-003:
+    title: "The system shall enforce automatic electronic session termination via deterministic JWT expiration timestamps (HIPAA §164.312(a)(2)(ii))."
+    category: "Security"
+    criticality: "Essential"
+    verification: "Test"
+  SRS-SEC-004:
+    title: "The system shall enforce SHA-256 cryptographic verification before unpickling stored models to prevent unsafe deserialization (CWE-502)."
+    category: "Security"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-SEC-005:
+    title: "The system shall isolate network socket bindings behind Kubernetes Ingress and Service boundaries (CWE-605)."
+    category: "Security"
+    criticality: "Essential"
+    verification: "Test"
+  SRS-SEC-006:
+    title: "The system shall restrict outbound webhook URL schemes and enforce strict 5-second socket timeouts to mitigate SSRF (CWE-22)."
+    category: "Security"
+    criticality: "Essential"
+    verification: "Test"
+  SRS-SEC-007:
+    title: "The system shall prevent SQL injection via strictly parameterized SQLite queries with column whitelisting (CWE-89)."
+    category: "Security"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-SEC-008:
+    title: "The system shall encrypt ePHI at rest using authenticated AES-256 / Fernet symmetric key cryptography (HIPAA §164.312(a)(2)(iii))."
+    category: "Security"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-SEC-009:
+    title: "The system shall record clinical events in an append-only, SHA-256 hash-chained SQLite audit store (HIPAA §164.312(b))."
+    category: "Security"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-SEC-010:
+    title: "The system shall guarantee ePHI authenticity and detect unauthorized alterations via SHA-256 digests (HIPAA §164.312(c)(1))."
+    category: "Security"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-SEC-011:
+    title: "The system shall provide automated APIs to re-derive hash chains and detect database tampering (HIPAA §164.312(c)(2))."
+    category: "Security"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-SEC-012:
+    title: "The system shall authenticate clinical users and EHR clients via SMART-on-FHIR OAuth2 bearer tokens (HIPAA §164.312(d))."
+    category: "Security"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-SEC-013:
+    title: "The system shall enforce TLS transmission encryption for all WAN and cloud gateway egress (HIPAA §164.312(e)(1)-(2))."
+    category: "Security"
+    criticality: "Critical"
+    verification: "Test"

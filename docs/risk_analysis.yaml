@@ -301,3 +301,30 @@ hazards:
     residual_risk: 4
     acceptable: true
 
+  HAZ-024:
+    hazard: "Pod unresponsiveness or degraded execution in Kubernetes cluster"
+    cause: "Memory pressure, internal watchdog failure, or sensor feed stall"
+    severity: 4
+    probability: 2
+    risk_before: 8
+    controls:
+      - "Kubernetes liveness and readiness probe automation (/health and /api/diagnostics/health)"
+      - "IEC 60601-1-8 alarm self-test returning 503 to automatically deschedule degraded pod"
+      - "Horizontal Pod Autoscaler (HPA) and ReplicaSet automatic pod recreation"
+    residual_risk: 3
+    acceptable: true
+
+  HAZ-025:
+    hazard: "Adversarial model replacement or unauthorized pickle deserialization"
+    cause: "Malicious insider or database tampering modifying serialized model bytes"
+    severity: 5
+    probability: 1
+    risk_before: 5
+    controls:
+      - "SHA-256 cryptographic verification prior to unpickling in ModelRegistry"
+      - "Immediate ValueError exception raised on hash mismatch before deserialization"
+      - "HIPAA §164.312(c) audit trail and integrity corroboration"
+    residual_risk: 2
+    acceptable: true
+
+

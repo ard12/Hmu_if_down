@@ -1,9 +1,9 @@
 # Software Requirement Traceability Matrix (IEC 62304 / FDA SaMD)
 
 **Specification Version**: v3.3.0  
-**Total Requirements**: 32  
-**Test Coverage**: 100.0% (32/32)  
-**Critical Requirement Coverage**: 100.0% (13/13)  
+**Total Requirements**: 45  
+**Test Coverage**: 100.0% (45/45)  
+**Critical Requirement Coverage**: 100.0% (23/23)  
 
 ## Traceability Matrix
 
@@ -41,11 +41,24 @@
 | `SRS-030` | The system shall provide REST endpoints to dynamically query and update detection sensitivity thresholds. | Safety / Usability | Essential | hub/dashboard/app.py:post_thresholds | tests/test_dashboard.py::test_dashboard_thresholds_api | ✅ Covered |
 | `SRS-031` | The system shall classify graduated alert severities based on Bayesian posterior probabilities. | Safety / Risk Control | Critical | hub/fusion_engine.py:DualFusionEngine._evaluate_consensus | tests/test_bayesian_classifier.py::test_graduated_severity_confirmed_threshold | ✅ Covered |
 | `SRS-032` | The system shall operate reliably across single-modality degraded modes when one sensor fails. | Safety / Risk Control | Critical | hub/fusion_engine.py:DualFusionEngine.process_csi_features | tests/test_integration.py::test_fusion_csi_only_mode | ✅ Covered |
+| `SRS-SEC-001` | The system shall enforce unique user identification via cryptographically signed JWT tokens and RBAC roles (HIPAA §164.312(a)(1)). | Security | Critical | hub/auth.py:verify_token | tests/test_hipaa_validator.py::test_access_control_safeguard_detection | ✅ Covered |
+| `SRS-SEC-002` | The system shall provide emergency break-glass role elevation with mandatory audit logging and expiring tokens (HIPAA §164.312(a)(2)(i)). | Security | Critical | hub/auth.py:create_break_glass_token | tests/test_hipaa_validator.py::test_break_glass_token_functionality | ✅ Covered |
+| `SRS-SEC-003` | The system shall enforce automatic electronic session termination via deterministic JWT expiration timestamps (HIPAA §164.312(a)(2)(ii)). | Security | Essential | hub/auth.py:is_token_expired | tests/test_hipaa_validator.py::test_break_glass_token_functionality | ✅ Covered |
+| `SRS-SEC-004` | The system shall enforce SHA-256 cryptographic verification before unpickling stored models to prevent unsafe deserialization (CWE-502). | Security | Critical | hub/model_registry.py:ModelRegistry.load_model | tests/test_sast.py::test_model_registry_tamper_prevention | ✅ Covered |
+| `SRS-SEC-005` | The system shall isolate network socket bindings behind Kubernetes Ingress and Service boundaries (CWE-605). | Security | Essential | helm/fall-detection-hub/templates/ingress.yaml:Ingress | tests/test_helm_chart.py::test_ingress_template | ✅ Covered |
+| `SRS-SEC-006` | The system shall restrict outbound webhook URL schemes and enforce strict 5-second socket timeouts to mitigate SSRF (CWE-22). | Security | Essential | hub/alert_dispatcher.py:AlertDispatcher._post_webhook | tests/test_alert_dispatcher.py::test_alert_dispatcher_handles_network_failure | ✅ Covered |
+| `SRS-SEC-007` | The system shall prevent SQL injection via strictly parameterized SQLite queries with column whitelisting (CWE-89). | Security | Critical | hub/audit_log.py:AuditLog.query | tests/test_audit_log.py::test_audit_log_query_by_event_type | ✅ Covered |
+| `SRS-SEC-008` | The system shall encrypt ePHI at rest using authenticated AES-256 / Fernet symmetric key cryptography (HIPAA §164.312(a)(2)(iii)). | Security | Critical | hub/fhir_lake.py:FHIRDataLake.write_resource | tests/test_fhir_lake.py::test_write_and_read_patient_round_trip | ✅ Covered |
+| `SRS-SEC-009` | The system shall record clinical events in an append-only, SHA-256 hash-chained SQLite audit store (HIPAA §164.312(b)). | Security | Critical | hub/audit_log.py:AuditLog.append | tests/test_audit_tamper_campaign.py::test_campaign_intact_chain | ✅ Covered |
+| `SRS-SEC-010` | The system shall guarantee ePHI authenticity and detect unauthorized alterations via SHA-256 digests (HIPAA §164.312(c)(1)). | Security | Critical | hub/audit_log.py:AuditLog._compute_hash | tests/test_audit_tamper_campaign.py::test_campaign_payload_modification | ✅ Covered |
+| `SRS-SEC-011` | The system shall provide automated APIs to re-derive hash chains and detect database tampering (HIPAA §164.312(c)(2)). | Security | Critical | hub/audit_log.py:AuditLog.verify_chain | tests/test_hipaa_validator.py::test_integrity_controls_safeguard_detection | ✅ Covered |
+| `SRS-SEC-012` | The system shall authenticate clinical users and EHR clients via SMART-on-FHIR OAuth2 bearer tokens (HIPAA §164.312(d)). | Security | Critical | hub/smart_fhir_client.py:SMARTFHIRClient.get_token | tests/test_smart_fhir_client.py::test_token_fetch_uses_client_credentials | ✅ Covered |
+| `SRS-SEC-013` | The system shall enforce TLS transmission encryption for all WAN and cloud gateway egress (HIPAA §164.312(e)(1)-(2)). | Security | Critical | hub/cloud_sync.py:CloudSyncGateway._send_packet | tests/test_hipaa_validator.py::test_transmission_security_safeguard_detection | ✅ Covered |
 
 ## Coverage Summary by Criticality
 
 | Criticality | Total | Covered | Coverage % |
 |---|---|---|---|
-| Critical | 13 | 13 | 100.0% |
-| Essential | 14 | 14 | 100.0% |
+| Critical | 23 | 23 | 100.0% |
+| Essential | 17 | 17 | 100.0% |
 | Minor | 5 | 5 | 100.0% |
