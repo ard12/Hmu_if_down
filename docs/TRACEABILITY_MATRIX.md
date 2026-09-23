@@ -1,9 +1,9 @@
 # Software Requirement Traceability Matrix (IEC 62304 / FDA SaMD)
 
 **Specification Version**: v3.3.0  
-**Total Requirements**: 45  
-**Test Coverage**: 100.0% (45/45)  
-**Critical Requirement Coverage**: 100.0% (23/23)  
+**Total Requirements**: 48  
+**Test Coverage**: 100.0% (48/48)  
+**Critical Requirement Coverage**: 100.0% (25/25)  
 
 ## Traceability Matrix
 
@@ -41,6 +41,9 @@
 | `SRS-030` | The system shall provide REST endpoints to dynamically query and update detection sensitivity thresholds. | Safety / Usability | Essential | hub/dashboard/app.py:post_thresholds | tests/test_dashboard.py::test_dashboard_thresholds_api | ✅ Covered |
 | `SRS-031` | The system shall classify graduated alert severities based on Bayesian posterior probabilities. | Safety / Risk Control | Critical | hub/fusion_engine.py:DualFusionEngine._evaluate_consensus | tests/test_bayesian_classifier.py::test_graduated_severity_confirmed_threshold | ✅ Covered |
 | `SRS-032` | The system shall operate reliably across single-modality degraded modes when one sensor fails. | Safety / Risk Control | Critical | hub/fusion_engine.py:DualFusionEngine.process_csi_features | tests/test_integration.py::test_fusion_csi_only_mode | ✅ Covered |
+| `SRS-PERF-001` | The system shall accelerate inference using TensorRT FP16/INT8 execution providers with automatic fallback to CPU. | Performance | Critical | D:/Fall_detection/hub/tensorrt_runner.py:61<br>hub/tensorrt_runner.py:TensorRTRunner.predict | tests/test_tensorrt_runner.py::test_predict_returns_inference_result_dataclass | ✅ Covered |
+| `SRS-PERF-002` | The system shall quantise decision boundary thresholds into fixed-point representations for embedded MCU execution. | Performance | Essential | D:/Fall_detection/hub/tinyml_quantizer.py:6<br>hub/tinyml_quantizer.py:TinyMLQuantizer.export_c_header | tests/test_tinyml_quantizer.py::test_evaluate_quantisation_report | ✅ Covered |
+| `SRS-PERF-003` | The system shall dynamically route inference requests across edge, GPU, and CPU execution providers based on latency SLA and thermal state. | Performance | Critical | D:/Fall_detection/hub/offload_manager.py:9<br>hub/offload_manager.py:OffloadManager.decide | tests/test_offload_manager.py::test_default_decision_selects_tensorrt_when_available | ✅ Covered |
 | `SRS-SEC-001` | The system shall enforce unique user identification via cryptographically signed JWT tokens and RBAC roles (HIPAA §164.312(a)(1)). | Security | Critical | hub/auth.py:verify_token | tests/test_hipaa_validator.py::test_access_control_safeguard_detection | ✅ Covered |
 | `SRS-SEC-002` | The system shall provide emergency break-glass role elevation with mandatory audit logging and expiring tokens (HIPAA §164.312(a)(2)(i)). | Security | Critical | hub/auth.py:create_break_glass_token | tests/test_hipaa_validator.py::test_break_glass_token_functionality | ✅ Covered |
 | `SRS-SEC-003` | The system shall enforce automatic electronic session termination via deterministic JWT expiration timestamps (HIPAA §164.312(a)(2)(ii)). | Security | Essential | hub/auth.py:is_token_expired | tests/test_hipaa_validator.py::test_break_glass_token_functionality | ✅ Covered |
@@ -59,6 +62,6 @@
 
 | Criticality | Total | Covered | Coverage % |
 |---|---|---|---|
-| Critical | 23 | 23 | 100.0% |
-| Essential | 17 | 17 | 100.0% |
+| Critical | 25 | 25 | 100.0% |
+| Essential | 18 | 18 | 100.0% |
 | Minor | 5 | 5 | 100.0% |

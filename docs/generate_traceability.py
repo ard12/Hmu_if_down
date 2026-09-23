@@ -65,6 +65,9 @@ BASELINE_IMPL_MAP = {
     "SRS-SEC-011": ["hub/audit_log.py:AuditLog.verify_chain"],
     "SRS-SEC-012": ["hub/smart_fhir_client.py:SMARTFHIRClient.get_token"],
     "SRS-SEC-013": ["hub/cloud_sync.py:CloudSyncGateway._send_packet"],
+    "SRS-PERF-001": ["hub/tensorrt_runner.py:TensorRTRunner.predict"],
+    "SRS-PERF-002": ["hub/tinyml_quantizer.py:TinyMLQuantizer.export_c_header"],
+    "SRS-PERF-003": ["hub/offload_manager.py:OffloadManager.decide"],
 }
 
 BASELINE_TEST_MAP = {
@@ -115,6 +118,9 @@ BASELINE_TEST_MAP = {
     "SRS-SEC-011": ["tests/test_hipaa_validator.py::test_integrity_controls_safeguard_detection"],
     "SRS-SEC-012": ["tests/test_smart_fhir_client.py::test_token_fetch_uses_client_credentials"],
     "SRS-SEC-013": ["tests/test_hipaa_validator.py::test_transmission_security_safeguard_detection"],
+    "SRS-PERF-001": ["tests/test_tensorrt_runner.py::test_predict_returns_inference_result_dataclass"],
+    "SRS-PERF-002": ["tests/test_tinyml_quantizer.py::test_evaluate_quantisation_report"],
+    "SRS-PERF-003": ["tests/test_offload_manager.py::test_default_decision_selects_tensorrt_when_available"],
 }
 
 
@@ -128,7 +134,7 @@ def load_requirements(yaml_path: Path) -> Dict[str, Dict[str, Any]]:
 def scan_source_annotations(source_dir: Path) -> Dict[str, List[str]]:
     """Scan source code for @req SRS-xxx tags."""
     req_map: Dict[str, List[str]] = {}
-    pattern = re.compile(r"@req\s+(SRS-\d{3})")
+    pattern = re.compile(r"@req\s+(SRS-[\w\-]+)")
 
     if not source_dir.exists():
         return req_map
@@ -150,7 +156,7 @@ def scan_source_annotations(source_dir: Path) -> Dict[str, List[str]]:
 def scan_test_annotations(test_dir: Path) -> Dict[str, List[str]]:
     """Scan tests for @covers SRS-xxx tags."""
     test_map: Dict[str, List[str]] = {}
-    pattern = re.compile(r"@covers\s+(SRS-\d{3})")
+    pattern = re.compile(r"@covers\s+(SRS-[\w\-]+)")
 
     if not test_dir.exists():
         return test_map

@@ -327,4 +327,17 @@ hazards:
     residual_risk: 2
     acceptable: true
 
+  HAZ-026:
+    hazard: "Edge quantization accuracy degradation causing false negatives"
+    cause: "Severe precision loss during 8-bit integer quantization or INT8 calibration mismatch"
+    severity: 4
+    probability: 2
+    risk_before: 8
+    controls:
+      - "QuantisationReport automated accuracy validation against empirical test sets"
+      - "Dual execution fallback to full precision ONNX CPU or scikit-learn models"
+      - "Dynamic offloading manager monitoring real-time SLA and provider health"
+    residual_risk: 3
+    acceptable: true
+
 

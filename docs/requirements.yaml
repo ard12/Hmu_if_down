@@ -227,3 +227,18 @@ requirements:
     category: "Security"
     criticality: "Critical"
     verification: "Test"
+  SRS-PERF-001:
+    title: "The system shall accelerate inference using TensorRT FP16/INT8 execution providers with automatic fallback to CPU."
+    category: "Performance"
+    criticality: "Critical"
+    verification: "Test"
+  SRS-PERF-002:
+    title: "The system shall quantise decision boundary thresholds into fixed-point representations for embedded MCU execution."
+    category: "Performance"
+    criticality: "Essential"
+    verification: "Test"
+  SRS-PERF-003:
+    title: "The system shall dynamically route inference requests across edge, GPU, and CPU execution providers based on latency SLA and thermal state."
+    category: "Performance"
+    criticality: "Critical"
+    verification: "Test"

@@ -70,6 +70,8 @@ class TelemetryBroadcaster:
         self.biomechanics_classifier = None
         self.federated_server = None
         self.personalization_layer = None
+        self.tensorrt_runner = None
+        self.offload_manager = None
         self.is_ready: bool = True
         self.latest_fall_type: Optional[str] = None
         self.latest_fall_type_conf: float = 0.0
@@ -1311,6 +1313,129 @@ async def post_federated_personalize(request: Request):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=400)
 
+
+def _get_tensorrt_runner():
+    if broadcaster.tensorrt_runner is not None:
+        return broadcaster.tensorrt_runner
+    try:
+        from hub.tensorrt_runner import TensorRTRunner
+        broadcaster.tensorrt_runner = TensorRTRunner()
+        return broadcaster.tensorrt_runner
+    except Exception as e:
+        logger.warning(f"Failed to initialize TensorRTRunner: {e}")
+        return None
+
+
+def _get_offload_manager():
+    if broadcaster.offload_manager is not None:
+        return broadcaster.offload_manager
+    try:
+        from hub.offload_manager import OffloadManager
+        broadcaster.offload_manager = OffloadManager()
+        return broadcaster.offload_manager
+    except Exception as e:
+        logger.warning(f"Failed to initialize OffloadManager: {e}")
+        return None
+
+
+@app.get("/acceleration")
+async def get_acceleration_page():
+    page_path = STATIC_DIR / "acceleration.html"
+    if page_path.exists():
+        return FileResponse(page_path)
+    return JSONResponse({"status": "running", "message": "Acceleration HUD static file not found."})
+
+
+@app.get("/api/acceleration/status")
+async def get_acceleration_status():
+    """Return active execution provider, latency telemetry, and hardware health."""
+    runner = _get_tensorrt_runner()
+    manager = _get_offload_manager()
+    health = manager.get_provider_health() if manager else {}
+    stats = runner.get_latency_stats() if runner else None
+    provider_val = runner.provider.value if runner else "unknown"
+
+    return {
+        "status": "operational",
+        "active_provider": provider_val,
+        "is_tensorrt": runner.is_tensorrt if runner else False,
+        "provider_health": health,
+        "latency_stats": {
+            "p50_ms": stats.p50_ms if stats else 0.0,
+            "p95_ms": stats.p95_ms if stats else 0.0,
+            "p99_ms": stats.p99_ms if stats else 0.0,
+            "mean_ms": stats.mean_ms if stats else 0.0,
+            "total_inferences": stats.total_inferences if stats else 0,
+            "provider": stats.provider if stats else provider_val,
+        },
+    }
+
+
+@app.post("/api/acceleration/benchmark")
+async def post_acceleration_benchmark(request: Request):
+    """Run benchmark inferences to measure latency and update offload manager."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    n_runs = int(body.get("n", 50))
+    n_runs = max(1, min(n_runs, 500))
+
+    runner = _get_tensorrt_runner()
+    manager = _get_offload_manager()
+    if not runner:
+        return JSONResponse({"error": "Inference runner unavailable"}, status_code=503)
+
+    sample_features = np.random.uniform(0.0, 1.0, size=9)
+    from hub.offload_manager import OffloadTarget
+    provider_target = OffloadTarget.TENSORRT if runner.is_tensorrt else OffloadTarget.SKLEARN
+
+    for _ in range(n_runs):
+        res = runner.predict(sample_features)
+        if manager:
+            manager.report_inference(provider_target, res.latency_ms, success=True)
+
+    stats = runner.get_latency_stats()
+    return {
+        "status": "completed",
+        "n_runs": n_runs,
+        "active_provider": runner.provider.value,
+        "stats": {
+            "p50_ms": stats.p50_ms,
+            "p95_ms": stats.p95_ms,
+            "p99_ms": stats.p99_ms,
+            "mean_ms": stats.mean_ms,
+            "total_inferences": stats.total_inferences,
+            "provider": stats.provider,
+        },
+    }
+
+
+@app.get("/api/acceleration/sla")
+async def get_acceleration_sla():
+    """Return latency SLA compliance metrics."""
+    manager = _get_offload_manager()
+    runner = _get_tensorrt_runner()
+    sla_target = manager.sla_target_ms if manager else 50.0
+
+    if not runner or not runner._latencies:
+        return {
+            "sla_target_ms": sla_target,
+            "compliance_percentage": 100.0,
+            "total_evaluated": 0,
+            "sla_met_count": 0,
+        }
+
+    total = len(runner._latencies)
+    met = sum(1 for lat in runner._latencies if lat <= sla_target)
+    pct = (met / total) * 100.0 if total > 0 else 100.0
+
+    return {
+        "sla_target_ms": sla_target,
+        "compliance_percentage": round(pct, 2),
+        "total_evaluated": total,
+        "sla_met_count": met,
+    }
 
 
 @app.websocket("/ws/telemetry")
