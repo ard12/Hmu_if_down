@@ -1,7 +1,7 @@
 # ISO 14971 FMEA Risk Analysis — Fall Detection SaMD v3.x
 
 **Document ID**: RA-ISO14971-V3  
-**Total Hazards Evaluated**: 26  
+**Total Hazards Evaluated**: 28  
 **Standard**: ISO 14971:2019 (Medical devices — Application of risk management to medical devices)  
 **Risk Evaluation Matrix**: Severity (1-5) × Probability (1-5). Acceptability threshold: Residual Risk <= 4.  
 
@@ -35,6 +35,8 @@
 | `HAZ-024` | Pod unresponsiveness or degraded execution in Kubernetes cluster | Memory pressure, internal watchdog failure, or sensor feed stall | 4 | 2 | **8** | - Kubernetes liveness and readiness probe automation (/health and /api/diagnostics/health)<br>- IEC 60601-1-8 alarm self-test returning 503 to automatically deschedule degraded pod<br>- Horizontal Pod Autoscaler (HPA) and ReplicaSet automatic pod recreation | **3** | ✅ YES |
 | `HAZ-025` | Adversarial model replacement or unauthorized pickle deserialization | Malicious insider or database tampering modifying serialized model bytes | 5 | 1 | **5** | - SHA-256 cryptographic verification prior to unpickling in ModelRegistry<br>- Immediate ValueError exception raised on hash mismatch before deserialization<br>- HIPAA §164.312(c) audit trail and integrity corroboration | **2** | ✅ YES |
 | `HAZ-026` | Edge quantization accuracy degradation causing false negatives | Severe precision loss during 8-bit integer quantization or INT8 calibration mismatch | 4 | 2 | **8** | - QuantisationReport automated accuracy validation against empirical test sets<br>- Dual execution fallback to full precision ONNX CPU or scikit-learn models<br>- Dynamic offloading manager monitoring real-time SLA and provider health | **3** | ✅ YES |
+| `HAZ-027` | Multi-occupant fall mis-attribution causing false alarm or missed event | Caregiver bending down or entering room causes centroid cross-association or confusion | 4 | 2 | **8** | - Hungarian algorithm linear assignment on radar centroids with gating distance<br>- Per-occupant Kalman filter state estimation and trajectory smoothing<br>- Spatial Doppler gating isolating individual micro-motion profiles | **2** | ✅ YES |
+| `HAZ-028` | Synthetic data distribution shift causing poor generalization to clinical falls | Geometric ray-tracing simulator differences from complex physical multipath scattering | 4 | 2 | **8** | - Ray-tracer image source reflections up to configurable order with material loss<br>- Simulated CSI validation against empirical test suites<br>- Synthetic streamer strictly used for integration testing and pre-training augmentation | **2** | ✅ YES |
 
 ## Risk Matrix Summary
 

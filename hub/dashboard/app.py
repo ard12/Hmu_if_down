@@ -72,6 +72,7 @@ class TelemetryBroadcaster:
         self.personalization_layer = None
         self.tensorrt_runner = None
         self.offload_manager = None
+        self.multi_occupant_tracker = None
         self.is_ready: bool = True
         self.latest_fall_type: Optional[str] = None
         self.latest_fall_type_conf: float = 0.0
@@ -1436,6 +1437,112 @@ async def get_acceleration_sla():
         "total_evaluated": total,
         "sla_met_count": met,
     }
+
+
+# ---------------------------------------------------------------------------
+# 3D Spatial Digital Twin & Multi-Occupant Simulation Endpoints (Phase 20)
+# ---------------------------------------------------------------------------
+
+def _get_multi_occupant_tracker():
+    if broadcaster.multi_occupant_tracker is not None:
+        return broadcaster.multi_occupant_tracker
+    try:
+        from hub.multi_occupant import MultiOccupantTracker
+        broadcaster.multi_occupant_tracker = MultiOccupantTracker()
+        return broadcaster.multi_occupant_tracker
+    except Exception as e:
+        logger.warning(f"Could not load MultiOccupantTracker: {e}")
+        return None
+
+
+@app.get("/digital-twin")
+async def get_digital_twin_page():
+    path = STATIC_DIR / "digital_twin.html"
+    if not path.exists():
+        return JSONResponse({"error": "digital_twin.html not found"}, status_code=404)
+    return FileResponse(path, media_type="text/html")
+
+
+@app.get("/api/simulation/state")
+async def get_simulation_state():
+    """Return current multi-occupant tracking state."""
+    tracker = _get_multi_occupant_tracker()
+    if tracker is None:
+        return {"occupants": [], "active_count": 0, "frame_count": 0, "fallen_count": 0}
+    occupants = [t.to_dict() for t in tracker._tracks.values()]
+    return {
+        "occupants": occupants,
+        "active_count": tracker.active_count,
+        "frame_count": tracker.frame_count,
+        "fallen_count": len(tracker.get_fallen_occupants()),
+    }
+
+
+@app.post("/api/simulation/inject")
+async def inject_simulation_detection(request: Request):
+    """Inject a synthetic radar blob into the multi-occupant tracker."""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"detail": "Invalid JSON"}, status_code=422)
+
+    if not isinstance(body, dict) or "centroid" not in body:
+        return JSONResponse({"detail": "centroid is required"}, status_code=422)
+
+    centroid = body.get("centroid")
+    if not isinstance(centroid, list) or len(centroid) != 3:
+        return JSONResponse({"detail": "centroid must be a list of 3 coordinates"}, status_code=422)
+
+    try:
+        centroid_arr = np.array([float(x) for x in centroid], dtype=np.float64)
+    except (ValueError, TypeError):
+        return JSONResponse({"detail": "centroid coordinates must be numbers"}, status_code=422)
+
+    area_m2 = float(body.get("area_m2", 0.5))
+    peak_velocity_mps = float(body.get("peak_velocity_mps", 0.0))
+
+    tracker = _get_multi_occupant_tracker()
+    if tracker is None:
+        return JSONResponse({"detail": "Simulation tracker unavailable"}, status_code=503)
+
+    from hub.multi_occupant import DetectedBlob
+    blob = DetectedBlob(centroid=centroid_arr, area_m2=area_m2, peak_velocity_mps=peak_velocity_mps)
+    tracks = tracker.update([blob], timestamp=time.time())
+    return {
+        "status": "injected",
+        "active_tracks": [t.to_dict() for t in tracks],
+        "active_count": tracker.active_count,
+    }
+
+
+@app.websocket("/ws/twin")
+async def websocket_twin(websocket: WebSocket):
+    """WebSocket stream for real-time digital twin state."""
+    await websocket.accept()
+    tracker = _get_multi_occupant_tracker()
+    try:
+        if tracker:
+            occupants = [t.to_dict() for t in tracker._tracks.values()]
+            await websocket.send_text(json.dumps({
+                "type": "twin_state",
+                "occupants": occupants,
+                "active_count": tracker.active_count,
+            }))
+        while True:
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text(json.dumps({"type": "pong"}))
+            elif data == "poll" and tracker:
+                occupants = [t.to_dict() for t in tracker._tracks.values()]
+                await websocket.send_text(json.dumps({
+                    "type": "twin_state",
+                    "occupants": occupants,
+                    "active_count": tracker.active_count,
+                }))
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        logger.warning(f"Twin WebSocket exception: {e}")
 
 
 @app.websocket("/ws/telemetry")

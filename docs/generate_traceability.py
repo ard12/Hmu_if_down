@@ -121,6 +121,9 @@ BASELINE_TEST_MAP = {
     "SRS-PERF-001": ["tests/test_tensorrt_runner.py::test_predict_returns_inference_result_dataclass"],
     "SRS-PERF-002": ["tests/test_tinyml_quantizer.py::test_evaluate_quantisation_report"],
     "SRS-PERF-003": ["tests/test_offload_manager.py::test_default_decision_selects_tensorrt_when_available"],
+    "SRS-SIM-001": ["tests/test_ray_tracer.py::test_empty_room_produces_valid_csi"],
+    "SRS-SIM-002": ["tests/test_synthetic_streamer.py::test_forward_trip_scenario_has_keyframes"],
+    "SRS-MO-001": ["tests/test_multi_occupant.py::test_two_occupants_tracked_separately"],
 }
 
 

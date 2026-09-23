@@ -1,9 +1,9 @@
 # Software Requirement Traceability Matrix (IEC 62304 / FDA SaMD)
 
 **Specification Version**: v3.3.0  
-**Total Requirements**: 48  
-**Test Coverage**: 100.0% (48/48)  
-**Critical Requirement Coverage**: 100.0% (25/25)  
+**Total Requirements**: 51  
+**Test Coverage**: 100.0% (51/51)  
+**Critical Requirement Coverage**: 100.0% (26/26)  
 
 ## Traceability Matrix
 
@@ -41,6 +41,7 @@
 | `SRS-030` | The system shall provide REST endpoints to dynamically query and update detection sensitivity thresholds. | Safety / Usability | Essential | hub/dashboard/app.py:post_thresholds | tests/test_dashboard.py::test_dashboard_thresholds_api | ✅ Covered |
 | `SRS-031` | The system shall classify graduated alert severities based on Bayesian posterior probabilities. | Safety / Risk Control | Critical | hub/fusion_engine.py:DualFusionEngine._evaluate_consensus | tests/test_bayesian_classifier.py::test_graduated_severity_confirmed_threshold | ✅ Covered |
 | `SRS-032` | The system shall operate reliably across single-modality degraded modes when one sensor fails. | Safety / Risk Control | Critical | hub/fusion_engine.py:DualFusionEngine.process_csi_features | tests/test_integration.py::test_fusion_csi_only_mode | ✅ Covered |
+| `SRS-MO-001` | The system shall track multiple occupants simultaneously and attribute falls to specific individuals using Hungarian assignment and Kalman filtering. | Algorithm | Critical | D:/Fall_detection/hub/multi_occupant.py:13 | tests/test_multi_occupant.py::test_two_occupants_tracked_separately | ✅ Covered |
 | `SRS-PERF-001` | The system shall accelerate inference using TensorRT FP16/INT8 execution providers with automatic fallback to CPU. | Performance | Critical | D:/Fall_detection/hub/tensorrt_runner.py:61<br>hub/tensorrt_runner.py:TensorRTRunner.predict | tests/test_tensorrt_runner.py::test_predict_returns_inference_result_dataclass | ✅ Covered |
 | `SRS-PERF-002` | The system shall quantise decision boundary thresholds into fixed-point representations for embedded MCU execution. | Performance | Essential | D:/Fall_detection/hub/tinyml_quantizer.py:6<br>hub/tinyml_quantizer.py:TinyMLQuantizer.export_c_header | tests/test_tinyml_quantizer.py::test_evaluate_quantisation_report | ✅ Covered |
 | `SRS-PERF-003` | The system shall dynamically route inference requests across edge, GPU, and CPU execution providers based on latency SLA and thermal state. | Performance | Critical | D:/Fall_detection/hub/offload_manager.py:9<br>hub/offload_manager.py:OffloadManager.decide | tests/test_offload_manager.py::test_default_decision_selects_tensorrt_when_available | ✅ Covered |
@@ -57,11 +58,13 @@
 | `SRS-SEC-011` | The system shall provide automated APIs to re-derive hash chains and detect database tampering (HIPAA §164.312(c)(2)). | Security | Critical | hub/audit_log.py:AuditLog.verify_chain | tests/test_hipaa_validator.py::test_integrity_controls_safeguard_detection | ✅ Covered |
 | `SRS-SEC-012` | The system shall authenticate clinical users and EHR clients via SMART-on-FHIR OAuth2 bearer tokens (HIPAA §164.312(d)). | Security | Critical | hub/smart_fhir_client.py:SMARTFHIRClient.get_token | tests/test_smart_fhir_client.py::test_token_fetch_uses_client_credentials | ✅ Covered |
 | `SRS-SEC-013` | The system shall enforce TLS transmission encryption for all WAN and cloud gateway egress (HIPAA §164.312(e)(1)-(2)). | Security | Critical | hub/cloud_sync.py:CloudSyncGateway._send_packet | tests/test_hipaa_validator.py::test_transmission_security_safeguard_detection | ✅ Covered |
+| `SRS-SIM-001` | The system shall provide a 3D ray-tracing RF multipath room simulation engine outputting synthetic CSI and radar data. | Simulation | Major | D:/Fall_detection/hub/simulation/ray_tracer.py:14 | tests/test_ray_tracer.py::test_empty_room_produces_valid_csi | ✅ Covered |
+| `SRS-SIM-002` | The system shall stream simulated human movement trajectories as live UDP datagrams compatible with hub packet parsers. | Simulation | Major | D:/Fall_detection/hub/simulation/synthetic_streamer.py:8 | tests/test_synthetic_streamer.py::test_forward_trip_scenario_has_keyframes | ✅ Covered |
 
 ## Coverage Summary by Criticality
 
 | Criticality | Total | Covered | Coverage % |
 |---|---|---|---|
-| Critical | 25 | 25 | 100.0% |
+| Critical | 26 | 26 | 100.0% |
 | Essential | 18 | 18 | 100.0% |
 | Minor | 5 | 5 | 100.0% |

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Room Digital Twin HUD — Fall Detection System</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <style>
+        body { margin: 0; background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; }
+        .twin-container { display: flex; height: 100vh; width: 100vw; }
+        #canvas3d { flex: 1; height: 100%; position: relative; }
+        .sidebar { width: 340px; background: #1e293b; border-left: 1px solid #334155; padding: 20px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+        .stat-card { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 14px; }
+        .stat-val { font-size: 24px; font-weight: bold; color: #38bdf8; }
+        .stat-lbl { font-size: 12px; color: #94a3b8; text-transform: uppercase; margin-top: 4px; }
+        .legend { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+        .legend-item { display: flex; align-items: center; gap: 10px; }
+        .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .btn-action { background: #2563eb; color: white; border: none; border-radius: 6px; padding: 10px; cursor: pointer; font-weight: 500; }
+        .btn-action:hover { background: #1d4ed8; }
+        .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+        .badge-normal { background: #065f46; color: #34d399; }
+        .badge-fallen { background: #991b1b; color: #f87171; }
+    </style>
+</head>
+<body>
+    <div class="twin-container">
+        <div id="canvas3d"></div>
+        <div class="sidebar">
+            <h2>3D Digital Twin HUD</h2>
+            <div class="stat-card">
+                <div class="stat-val" id="activeCount">0</div>
+                <div class="stat-lbl">Active Occupants</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val" id="fallenCount" style="color: #f87171;">0</div>
+                <div class="stat-lbl">Fallen Occupants</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val" id="frameCount">0</div>
+                <div class="stat-lbl">Track Frames Processed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-lbl" style="margin-bottom: 8px;">Posture Legend</div>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-dot" style="background: #22c55e;"></div> Normal Standing / Walking</div>
+                    <div class="legend-item"><div class="legend-dot" style="background: #ef4444;"></div> Fall Detected (Urgent)</div>
+                    <div class="legend-item"><div class="legend-dot" style="background: #3b82f6;"></div> RF Sensor Placement</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-lbl" style="margin-bottom: 8px;">Synthetic Test Injection</div>
+                <button class="btn-action" style="width: 100%; margin-bottom: 8px;" onclick="injectPerson(false)">Inject Standing Person</button>
+                <button class="btn-action" style="width: 100%; background: #dc2626;" onclick="injectPerson(true)">Simulate Rapid Fall</button>
+            </div>
+            <div style="font-size: 11px; color: #64748b; margin-top: auto;">
+                IEC 62304 / ISO 14971 Multi-Occupant Digital Twin Simulation Engine.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const container = document.getElementById('canvas3d');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0f172a);
+
+        const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
+        camera.position.set(3, -6, 7);
+        camera.up.set(0, 0, 1);
+        camera.lookAt(3, 2.5, 1);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        container.appendChild(renderer.domElement);
+
+        // Room wireframe (6m x 5m x 3m)
+        const roomGeo = new THREE.BoxGeometry(6, 5, 3);
+        const edges = new THREE.EdgesGeometry(roomGeo);
+        const roomLine = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x334155 }));
+        roomLine.position.set(3, 2.5, 1.5);
+        scene.add(roomLine);
+
+        // Floor grid
+        const grid = new THREE.GridHelper(6, 12, 0x475569, 0x1e293b);
+        grid.rotation.x = Math.PI / 2;
+        grid.position.set(3, 2.5, 0);
+        scene.add(grid);
+
+        // Lights
+        const light = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(light);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 5, 10);
+        scene.add(dirLight);
+
+        // Sensor markers
+        const sensorGeo = new THREE.ConeGeometry(0.15, 0.3, 8);
+        const sensorMat = new THREE.MeshBasicMaterial({ color: 0x3b82f6 });
+        const sensor1 = new THREE.Mesh(sensorGeo, sensorMat);
+        sensor1.position.set(0.5, 0.5, 2.0);
+        scene.add(sensor1);
+        const sensor2 = new THREE.Mesh(sensorGeo, sensorMat);
+        sensor2.position.set(5.5, 4.5, 2.0);
+        scene.add(sensor2);
+
+        // Occupant meshes pool
+        const occupantMeshes = {};
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+
+        // Fetch state polling
+        async function updateTwinState() {
+            try {
+                const res = await fetch('/api/simulation/state');
+                if (!res.ok) return;
+                const data = await res.json();
+                document.getElementById('activeCount').innerText = data.active_count || 0;
+                document.getElementById('fallenCount').innerText = data.fallen_count || 0;
+                document.getElementById('frameCount').innerText = data.frame_count || 0;
+
+                const seenIds = new Set();
+                (data.occupants || []).forEach(occ => {
+                    seenIds.add(occ.track_id);
+                    if (!occupantMeshes[occ.track_id]) {
+                        const geo = new THREE.SphereGeometry(0.25, 16, 16);
+                        const mat = new THREE.MeshStandardMaterial({ color: occ.is_fallen ? 0xef4444 : 0x22c55e });
+                        const mesh = new THREE.Mesh(geo, mat);
+                        scene.add(mesh);
+                        occupantMeshes[occ.track_id] = mesh;
+                    }
+                    const mesh = occupantMeshes[occ.track_id];
+                    mesh.position.set(occ.position[0], occ.position[1], occ.position[2]);
+                    mesh.material.color.setHex(occ.is_fallen ? 0xef4444 : 0x22c55e);
+                });
+
+                Object.keys(occupantMeshes).forEach(tid => {
+                    if (!seenIds.has(parseInt(tid))) {
+                        scene.remove(occupantMeshes[tid]);
+                        delete occupantMeshes[tid];
+                    }
+                });
+            } catch (err) {
+                console.error("Twin update error:", err);
+            }
+        }
+
+        setInterval(updateTwinState, 1000);
+        updateTwinState();
+
+        async function injectPerson(isFall) {
+            const z = isFall ? 0.3 : 1.6;
+            const v = isFall ? 2.8 : 0.2;
+            const x = 2.0 + Math.random() * 2.0;
+            const y = 1.5 + Math.random() * 2.0;
+            await fetch('/api/simulation/inject', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    centroid: [x, y, z],
+                    area_m2: 0.5,
+                    peak_velocity_mps: v
+                })
+            });
+            updateTwinState();
+        }
+    </script>
+</body>
+</html>

@@ -242,3 +242,22 @@ requirements:
     category: "Performance"
     criticality: "Critical"
     verification: "Test"
+
+  SRS-SIM-001:
+    title: "The system shall provide a 3D ray-tracing RF multipath room simulation engine outputting synthetic CSI and radar data."
+    category: "Simulation"
+    criticality: "Major"
+    verification: "Test"
+
+  SRS-SIM-002:
+    title: "The system shall stream simulated human movement trajectories as live UDP datagrams compatible with hub packet parsers."
+    category: "Simulation"
+    criticality: "Major"
+    verification: "Test"
+
+  SRS-MO-001:
+    title: "The system shall track multiple occupants simultaneously and attribute falls to specific individuals using Hungarian assignment and Kalman filtering."
+    category: "Algorithm"
+    criticality: "Critical"
+    verification: "Test"
+

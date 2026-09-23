@@ -340,4 +340,31 @@ hazards:
     residual_risk: 3
     acceptable: true
 
+  HAZ-027:
+    hazard: "Multi-occupant fall mis-attribution causing false alarm or missed event"
+    cause: "Caregiver bending down or entering room causes centroid cross-association or confusion"
+    severity: 4
+    probability: 2
+    risk_before: 8
+    controls:
+      - "Hungarian algorithm linear assignment on radar centroids with gating distance"
+      - "Per-occupant Kalman filter state estimation and trajectory smoothing"
+      - "Spatial Doppler gating isolating individual micro-motion profiles"
+    residual_risk: 2
+    acceptable: true
+
+  HAZ-028:
+    hazard: "Synthetic data distribution shift causing poor generalization to clinical falls"
+    cause: "Geometric ray-tracing simulator differences from complex physical multipath scattering"
+    severity: 4
+    probability: 2
+    risk_before: 8
+    controls:
+      - "Ray-tracer image source reflections up to configurable order with material loss"
+      - "Simulated CSI validation against empirical test suites"
+      - "Synthetic streamer strictly used for integration testing and pre-training augmentation"
+    residual_risk: 2
+    acceptable: true
+
+
 
