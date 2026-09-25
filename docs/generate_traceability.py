@@ -68,6 +68,9 @@ BASELINE_IMPL_MAP = {
     "SRS-PERF-001": ["hub/tensorrt_runner.py:TensorRTRunner.predict"],
     "SRS-PERF-002": ["hub/tinyml_quantizer.py:TinyMLQuantizer.export_c_header"],
     "SRS-PERF-003": ["hub/offload_manager.py:OffloadManager.decide"],
+    "SRS-FLT-001": ["hub/fleet_manager.py:FleetManager.provision_device"],
+    "SRS-FLT-002": ["hub/fleet_manager.py:FleetManager.record_heartbeat"],
+    "SRS-FLT-003": ["hub/ota_updater.py:OTAManager.generate_update_payload"],
 }
 
 BASELINE_TEST_MAP = {
@@ -129,6 +132,9 @@ BASELINE_TEST_MAP = {
     "SRS-UX-003": ["tests/test_alert_fatigue.py::test_fatigue_score_zero_when_all_acknowledged"],
     "SRS-XAI-001": ["tests/test_explainability.py::test_shap_explanation_has_feature_names"],
     "SRS-XAI-002": ["tests/test_model_card.py::test_model_card_generates_markdown"],
+    "SRS-FLT-001": ["tests/test_fleet_manager.py::test_provision_device"],
+    "SRS-FLT-002": ["tests/test_fleet_manager.py::test_heartbeat_updates_timestamp"],
+    "SRS-FLT-003": ["tests/test_ota_updater.py::test_generate_update_payload"],
 }
 
 

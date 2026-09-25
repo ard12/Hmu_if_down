@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fleet Command — Fall Detection Hub</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7fa; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; margin-bottom: 20px; }
+        .card { background-color: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f8f9fa; }
+        .status-online { color: #28a745; font-weight: bold; }
+        .status-offline { color: #dc3545; font-weight: bold; }
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; color: white; background-color: #007bff; font-weight: bold; }
+        .btn:hover { background-color: #0056b3; }
+        .ota-form { display: flex; gap: 10px; align-items: center; margin-top: 10px; }
+        input[type="text"] { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Fleet Command Orchestrator</h1>
+            <div id="stats">Total Devices: 0 | Online: 0</div>
+        </div>
+
+        <div class="card">
+            <h2>Active Devices</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Device ID</th>
+                        <th>Facility</th>
+                        <th>Room</th>
+                        <th>Firmware</th>
+                        <th>Model</th>
+                        <th>Status</th>
+                        <th>Last Seen</th>
+                    </tr>
+                </thead>
+                <tbody id="device-table-body">
+                    <tr><td colspan="7" style="text-align: center;">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>Deploy OTA Update</h2>
+            <p>Push new ONNX models or firmware directly to edge hubs via encrypted payloads.</p>
+            <div class="ota-form">
+                <input type="text" id="ota-version" placeholder="Version (e.g. 4.7.1)">
+                <input type="text" id="ota-facility" placeholder="Facility ID (Optional)">
+                <button class="btn" onclick="deployOTA()">Deploy Payload</button>
+            </div>
+            <div id="ota-status" style="margin-top: 10px; color: #28a745; font-weight: bold;"></div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchFleetStatus() {
+            try {
+                const response = await fetch('/api/fleet/devices');
+                const data = await response.json();
+                const tbody = document.getElementById('device-table-body');
+                tbody.innerHTML = '';
+
+                let onlineCount = 0;
+
+                if (data.devices.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No devices provisioned.</td></tr>';
+                } else {
+                    data.devices.forEach(device => {
+                        if (device.status === 'online') onlineCount++;
+                        
+                        const row = document.createElement('tr');
+                        const lastSeen = new Date(device.last_seen_at * 1000).toLocaleString();
+                        const statusClass = device.status === 'online' ? 'status-online' : 'status-offline';
+                        
+                        row.innerHTML = `
+                            <td><code>${device.device_id.substring(0, 12)}...</code></td>
+                            <td>${device.facility_id}</td>
+                            <td>${device.room_id}</td>
+                            <td>${device.firmware_ver}</td>
+                            <td>${device.model_ver}</td>
+                            <td class="${statusClass}">${device.status.toUpperCase()}</td>
+                            <td>${lastSeen}</td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                }
+                document.getElementById('stats').innerText = `Total Devices: ${data.total} | Online: ${onlineCount}`;
+            } catch (error) {
+                console.error("Failed to fetch fleet status:", error);
+            }
+        }
+
+        async function deployOTA() {
+            const version = document.getElementById('ota-version').value;
+            const facility = document.getElementById('ota-facility').value;
+            const statusDiv = document.getElementById('ota-status');
+            
+            if (!version) {
+                statusDiv.innerText = "Please provide a version.";
+                statusDiv.style.color = "#dc3545";
+                return;
+            }
+
+            statusDiv.innerText = "Generating signed OTA payload...";
+            statusDiv.style.color = "#007bff";
+
+            // Mock model payload (normally this would upload an actual file)
+            const mockModelHex = "4f4e4e580200000000000000deadbeef"; 
+
+            try {
+                const response = await fetch('/api/fleet/ota/deploy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        version: version,
+                        model_data_hex: mockModelHex,
+                        target_facility: facility || null
+                    })
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                    statusDiv.innerText = `Success! Deployment ID: ${result.deployment.deployment_id}`;
+                    statusDiv.style.color = "#28a745";
+                } else {
+                    statusDiv.innerText = `Error: ${result.detail}`;
+                    statusDiv.style.color = "#dc3545";
+                }
+            } catch (error) {
+                statusDiv.innerText = `Network Error.`;
+                statusDiv.style.color = "#dc3545";
+            }
+        }
+
+        // Poll every 5 seconds
+        setInterval(fetchFleetStatus, 5000);
+        fetchFleetStatus();
+    </script>
+</body>
+</html>

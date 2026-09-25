@@ -1,7 +1,7 @@
 # ISO 14971 FMEA Risk Analysis — Fall Detection SaMD v3.x
 
 **Document ID**: RA-ISO14971-V3  
-**Total Hazards Evaluated**: 30  
+**Total Hazards Evaluated**: 32  
 **Standard**: ISO 14971:2019 (Medical devices — Application of risk management to medical devices)  
 **Risk Evaluation Matrix**: Severity (1-5) × Probability (1-5). Acceptability threshold: Residual Risk <= 4.  
 
@@ -39,6 +39,8 @@
 | `HAZ-028` | Synthetic data distribution shift causing poor generalization to clinical falls | Geometric ray-tracing simulator differences from complex physical multipath scattering | 4 | 2 | **8** | - Ray-tracer image source reflections up to configurable order with material loss<br>- Simulated CSI validation against empirical test suites<br>- Synthetic streamer strictly used for integration testing and pre-training augmentation | **2** | ✅ YES |
 | `HAZ-029` | Caregiver alarm fatigue causing delayed or ignored response to acute fall | Overly intrusive or non-graduated notifications causing alert desensitization | 5 | 2 | **10** | - Progressive notification escalation tiers from silent push to emergency broadcast<br>- Automated fatigue scoring and 24-hour response time percentile tracking<br>- Immediate escalation halt on caregiver acknowledgement or patient recovery | **2** | ✅ YES |
 | `HAZ-030` | Clinician misinterpretation of model opacity leading to inappropriate alert overrides | Opaque model predictions without feature attribution or counterfactual rationale | 4 | 2 | **8** | - Local SHAP waterfall feature attribution plots for individual predictions<br>- Automated Model Card documentation conforming to Google/FDA GMLP principles<br>- Counterfactual explanation engine detailing required minimal kinematic shifts | **2** | ✅ YES |
+| `HAZ-031` | Compromised Over-The-Air (OTA) payload execution on Edge Hubs | Man-in-the-middle attack or unauthorized access to fleet orchestrator | 5 | 2 | **10** | - Strict SHA-256 cryptographic verification of all incoming payloads before application<br>- TLS encryption for all OTA transit operations<br>- Role-based access control (RBAC) bounding for OTA deployment endpoints | **3** | ✅ YES |
+| `HAZ-032` | Mass fleet disconnection or silent edge failure | Network outage or orchestration server crash | 4 | 3 | **12** | - Periodic heartbeat tracking in Fleet Registry with stale-device alarms<br>- Autonomous edge fallback to local alerting if central orchestrator is unreachable<br>- Fleet Dashboard exposes version fragmentation and offline device matrices | **3** | ✅ YES |
 
 ## Risk Matrix Summary
 

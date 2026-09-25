@@ -392,7 +392,28 @@ hazards:
     residual_risk: 2
     acceptable: true
 
+  HAZ-031:
+    hazard: "Compromised Over-The-Air (OTA) payload execution on Edge Hubs"
+    cause: "Man-in-the-middle attack or unauthorized access to fleet orchestrator"
+    severity: 5
+    probability: 2
+    risk_before: 10
+    controls:
+      - "Strict SHA-256 cryptographic verification of all incoming payloads before application"
+      - "TLS encryption for all OTA transit operations"
+      - "Role-based access control (RBAC) bounding for OTA deployment endpoints"
+    residual_risk: 3
+    acceptable: true
 
-
-
-
+  HAZ-032:
+    hazard: "Mass fleet disconnection or silent edge failure"
+    cause: "Network outage or orchestration server crash"
+    severity: 4
+    probability: 3
+    risk_before: 12
+    controls:
+      - "Periodic heartbeat tracking in Fleet Registry with stale-device alarms"
+      - "Autonomous edge fallback to local alerting if central orchestrator is unreachable"
+      - "Fleet Dashboard exposes version fragmentation and offline device matrices"
+    residual_risk: 3
+    acceptable: true

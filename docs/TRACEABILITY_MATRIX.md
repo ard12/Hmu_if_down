@@ -1,9 +1,9 @@
 # Software Requirement Traceability Matrix (IEC 62304 / FDA SaMD)
 
 **Specification Version**: v3.3.0  
-**Total Requirements**: 56  
-**Test Coverage**: 100.0% (56/56)  
-**Critical Requirement Coverage**: 100.0% (27/27)  
+**Total Requirements**: 59  
+**Test Coverage**: 100.0% (59/59)  
+**Critical Requirement Coverage**: 100.0% (29/29)  
 
 ## Traceability Matrix
 
@@ -41,6 +41,9 @@
 | `SRS-030` | The system shall provide REST endpoints to dynamically query and update detection sensitivity thresholds. | Safety / Usability | Essential | hub/dashboard/app.py:post_thresholds | tests/test_dashboard.py::test_dashboard_thresholds_api | ✅ Covered |
 | `SRS-031` | The system shall classify graduated alert severities based on Bayesian posterior probabilities. | Safety / Risk Control | Critical | hub/fusion_engine.py:DualFusionEngine._evaluate_consensus | tests/test_bayesian_classifier.py::test_graduated_severity_confirmed_threshold | ✅ Covered |
 | `SRS-032` | The system shall operate reliably across single-modality degraded modes when one sensor fails. | Safety / Risk Control | Critical | hub/fusion_engine.py:DualFusionEngine.process_csi_features | tests/test_integration.py::test_fusion_csi_only_mode | ✅ Covered |
+| `SRS-FLT-001` | The system shall provide a centralized fleet registry to provision and map edge hubs to specific facilities and rooms. | Fleet | Critical | hub/fleet_manager.py:FleetManager.provision_device | tests/test_fleet_manager.py::test_provision_device | ✅ Covered |
+| `SRS-FLT-002` | The system shall continuously track the health and heartbeat of registered edge hubs, exposing uptime and model version status. | Fleet | Essential | hub/fleet_manager.py:FleetManager.record_heartbeat | tests/test_fleet_manager.py::test_heartbeat_updates_timestamp | ✅ Covered |
+| `SRS-FLT-003` | The system shall securely distribute over-the-air (OTA) ML model updates to edge hubs, enforcing SHA-256 cryptographic verification. | Fleet | Critical | hub/ota_updater.py:OTAManager.generate_update_payload | tests/test_ota_updater.py::test_generate_update_payload | ✅ Covered |
 | `SRS-MO-001` | The system shall track multiple occupants simultaneously and attribute falls to specific individuals using Hungarian assignment and Kalman filtering. | Algorithm | Critical | D:/Fall_detection/hub/multi_occupant.py:13 | tests/test_multi_occupant.py::test_two_occupants_tracked_separately | ✅ Covered |
 | `SRS-PERF-001` | The system shall accelerate inference using TensorRT FP16/INT8 execution providers with automatic fallback to CPU. | Performance | Critical | D:/Fall_detection/hub/tensorrt_runner.py:61<br>hub/tensorrt_runner.py:TensorRTRunner.predict | tests/test_tensorrt_runner.py::test_predict_returns_inference_result_dataclass | ✅ Covered |
 | `SRS-PERF-002` | The system shall quantise decision boundary thresholds into fixed-point representations for embedded MCU execution. | Performance | Essential | D:/Fall_detection/hub/tinyml_quantizer.py:6<br>hub/tinyml_quantizer.py:TinyMLQuantizer.export_c_header | tests/test_tinyml_quantizer.py::test_evaluate_quantisation_report | ✅ Covered |
@@ -70,6 +73,6 @@
 
 | Criticality | Total | Covered | Coverage % |
 |---|---|---|---|
-| Critical | 27 | 27 | 100.0% |
-| Essential | 24 | 24 | 100.0% |
+| Critical | 29 | 29 | 100.0% |
+| Essential | 25 | 25 | 100.0% |
 | Minor | 5 | 5 | 100.0% |

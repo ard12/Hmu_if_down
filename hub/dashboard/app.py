@@ -198,14 +198,25 @@ try:
 except Exception as e:
     logger.warning(f"Could not load caregiver router: {e}")
 
-
-
+try:
+    from hub.fleet_api import router as fleet_router
+    app.include_router(fleet_router)
+except Exception as e:
+    logger.warning(f"Could not load fleet router: {e}")
 @app.get("/")
 async def get_index():
     index_path = STATIC_DIR / "index.html"
     if index_path.exists():
         return FileResponse(index_path)
     return JSONResponse({"status": "running", "message": "Dashboard static files not found."})
+
+
+@app.get("/fleet")
+async def get_fleet_page():
+    path = STATIC_DIR / "fleet.html"
+    if not path.exists():
+        return JSONResponse({"error": "fleet.html not found"}, status_code=404)
+    return FileResponse(path, media_type="text/html")
 
 
 @app.get("/caregiver")
