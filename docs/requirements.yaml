@@ -309,3 +309,63 @@ requirements:
     criticality: "Critical"
     verification: "Test"
 
+  SRS-VOC-001:
+    title: "The system shall continuously listen for emergency vocal distress keywords and open a two-way audio intercom upon fall confirmation."
+    category: "Voice"
+    criticality: "Critical"
+    verification: "Test"
+
+  SRS-VOC-002:
+    title: "The system shall support ambient voice cancellation commands enabling patients to suppress false alarm escalations hands-free."
+    category: "Voice"
+    criticality: "Essential"
+    verification: "Test"
+
+  SRS-AUT-001:
+    title: "The system shall execute environmental safety actions (lighting illumination, door unlocking, robotic obstruction halt) upon verified fall alerts."
+    category: "Automation"
+    criticality: "Critical"
+    verification: "Test"
+
+  SRS-AUT-002:
+    title: "The system shall maintain configurable smart home action chains with retry resilience and dry-run safety testing."
+    category: "Automation"
+    criticality: "Essential"
+    verification: "Test"
+
+  SRS-CLN-001:
+    title: "The system shall automatically generate standardized post-fall clinical incident reports aggregating kinematics, SHAP attribution, vitals, and timeline."
+    category: "Clinical"
+    criticality: "Critical"
+    verification: "Test"
+
+  SRS-CLN-002:
+    title: "The system shall map verified fall biomechanics to standardized ICD-10-CM and CPT remote patient monitoring billing codes."
+    category: "Clinical"
+    criticality: "Essential"
+    verification: "Test"
+
+  SRS-LNG-001:
+    title: "The system shall aggregate multi-day longitudinal mobility metrics (cadence, active duration, shuffle) and alert on week-over-week degradation."
+    category: "Longitudinal"
+    criticality: "Critical"
+    verification: "Test"
+
+  SRS-LNG-002:
+    title: "The system shall provide a dedicated Family Portal and REST API exposing simplified activity trends and proactive fall risk trajectories."
+    category: "Longitudinal"
+    criticality: "Essential"
+    verification: "Test"
+
+  SRS-REL-001:
+    title: "The system shall execute pre-flight startup self-tests verifying cryptographic audit chain continuity, model integrity, and database health."
+    category: "Reliability"
+    criticality: "Critical"
+    verification: "Test"
+
+  SRS-REL-002:
+    title: "The system shall maintain chaos and stress resilience under socket dropped packets, sensor frame corruption, and memory soak bounds."
+    category: "Reliability"
+    criticality: "Essential"
+    verification: "Test"
+

@@ -417,3 +417,73 @@ hazards:
       - "Fleet Dashboard exposes version fragmentation and offline device matrices"
     residual_risk: 3
     acceptable: true
+
+  HAZ-033:
+    hazard: "Unrecognized vocal distress keyword or audio clipping in high-noise ambient environment"
+    cause: "Acoustic echo, TV background noise, or patient vocal weakness following trauma"
+    severity: 4
+    probability: 2
+    risk_before: 8
+    controls:
+      - "Phonetic Levenshtein-tolerant keyword spotting and energy envelope normalization"
+      - "Dual-modality confirmation: voice serves as trigger/cancellation accelerator without overriding RF/radar fall detection"
+      - "Automatic escalation to caregiver intercom channel on high-uncertainty distress audio"
+    residual_risk: 2
+    acceptable: true
+
+  HAZ-034:
+    hazard: "Smart home peripheral failure (door lock, lighting, thermostat) during critical emergency response"
+    cause: "Zigbee/Z-Wave/MQTT broker connection timeout or peripheral battery exhaustion"
+    severity: 3
+    probability: 2
+    risk_before: 6
+    controls:
+      - "Action execution retries with exponential backoff and independent non-blocking workers"
+      - "Secondary fallback to siren and caregiver phone notification if locks fail to acknowledge"
+      - "Configurable dry-run self-test mode with audit logging for smart device reliability"
+    residual_risk: 2
+    acceptable: true
+
+  HAZ-035:
+    hazard: "Post-fall incident documentation omission or erroneous billing code assignment"
+    cause: "Unmapped biomechanics class or asynchronous sensor telemetry drop"
+    severity: 3
+    probability: 2
+    risk_before: 6
+    controls:
+      - "Deterministic fallback mapping to ICD-10 W19.XXXA (unspecified fall initial encounter)"
+      - "Schema validation against HL7 FHIR DiagnosticReport specifications"
+      - "Clinical review flag requiring attending provider signature before insurance transmission"
+    residual_risk: 2
+    acceptable: true
+
+  HAZ-036:
+    hazard: "Subtle longitudinal gait or mobility degradation unnoticed due to lack of trending alerts"
+    cause: "Gradual frailty progression or post-medication sedation across weeks"
+    severity: 3
+    probability: 3
+    risk_before: 9
+    controls:
+      - "Rolling 7-day and 30-day baseline trend tracking with statistical divergence detection"
+      - "Proactive family and caregiver push alerts when week-over-week cadence drops >15%"
+      - "Automated correlation with FRAX 10-year fracture risk score trajectories"
+    residual_risk: 2
+    acceptable: true
+
+  HAZ-037:
+    hazard: "System crash loop or silent hang following unhandled sensor frame corruption or database corruption"
+    cause: "Unexpected UDP datagram truncation, buffer exhaustion, or power cut mid-write"
+    severity: 5
+    probability: 2
+    risk_before: 10
+    controls:
+      - "Automated pre-flight startup self-test verifying database schema, model hashes, and genesis block"
+      - "Frame parsing defensive bounds checking and discard metrics"
+      - "Watchdog heartbeat monitoring with automatic process resurrection"
+    residual_risk: 2
+    acceptable: true
+
+
+
+
+

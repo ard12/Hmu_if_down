@@ -182,3 +182,32 @@ class SystemDiagnosticsWatcher:
             "iec_60601_compliance": "PASS" if all_passed else "FAIL",
             "timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
+
+
+class WatchdogHeartbeat:
+    """Monitors continuous execution of the main telemetry loop."""
+
+    def __init__(self, stall_timeout_sec: float = 10.0):
+        self.stall_timeout_sec = stall_timeout_sec
+        self.last_heartbeat = time.time()
+        self.stall_count = 0
+        self._lock = threading.Lock()
+
+    def beat(self) -> None:
+        """Call periodically from the main processing loop to reset watchdog."""
+        with self._lock:
+            self.last_heartbeat = time.time()
+
+    def check_health(self) -> Dict[str, Any]:
+        """Verify whether the loop has stalled beyond the timeout threshold."""
+        with self._lock:
+            elapsed = time.time() - self.last_heartbeat
+            is_stalled = elapsed > self.stall_timeout_sec
+            if is_stalled:
+                self.stall_count += 1
+            return {
+                "healthy": not is_stalled,
+                "elapsed_sec": round(elapsed, 2),
+                "timeout_sec": self.stall_timeout_sec,
+                "stall_count": self.stall_count,
+            }

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Portal — Fall Detection Hub</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 24px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        h1 { font-size: 26px; font-weight: 700; color: #0f172a; margin: 0; }
+        .card { background-color: white; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+        .status-pill { display: inline-flex; align-items: center; padding: 6px 14px; border-radius: 9999px; font-weight: 700; font-size: 14px; }
+        .status-steady { background-color: #dcfce7; color: #15803d; }
+        .status-caution { background-color: #fef9c3; color: #a16207; }
+        .status-declining { background-color: #fee2e2; color: #b91c1c; }
+        .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+        .metric-box { background-color: #f1f5f9; padding: 16px; border-radius: 12px; text-align: center; }
+        .metric-val { font-size: 24px; font-weight: 700; color: #0f172a; margin-top: 4px; }
+        .metric-label { font-size: 13px; color: #64748b; font-weight: 600; text-transform: uppercase; }
+        .advisory-box { background-color: #fff1f2; border-left: 4px solid #f43f5e; padding: 12px 16px; border-radius: 8px; margin-top: 16px; color: #9f1239; font-size: 14px; }
+        .history-list { margin-top: 16px; }
+        .history-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+        .btn-intercom { background-color: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 700; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Family Care Portal</h1>
+                <p style="color: #64748b; margin: 4px 0 0 0; font-size: 14px;">Peace of mind monitoring for your loved one</p>
+            </div>
+            <button class="btn-intercom" onclick="alert('Intercom request dispatched to room speaker!')">Speak to Room</button>
+        </div>
+
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="font-size: 18px; margin: 0; color: #334155;">Today's Physical Stability</h2>
+                <span id="status-badge" class="status-pill status-steady">Loading...</span>
+            </div>
+
+            <div class="metric-grid">
+                <div class="metric-box">
+                    <div class="metric-label">Active Time Today</div>
+                    <div class="metric-val" id="active-min">-- min</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label">Walking Cadence</div>
+                    <div class="metric-val" id="cadence-val">-- spm</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label">Week-over-Week</div>
+                    <div class="metric-val" id="wow-change">--%</div>
+                </div>
+            </div>
+
+            <div id="advisory-container"></div>
+        </div>
+
+        <div class="card">
+            <h2 style="font-size: 18px; margin: 0 0 12px 0; color: #334155;">Recent Daily Activity History</h2>
+            <div class="history-list" id="history-list">Loading history...</div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchFamilyData() {
+            try {
+                const res = await fetch('/api/family/summary?patient_id=PAT_DEFAULT');
+                const data = await res.json();
+
+                // Status pill
+                const badge = document.getElementById('status-badge');
+                badge.innerText = data.mobility_label;
+                badge.className = 'status-pill ' + 
+                    (data.mobility_status === 'STEADY' ? 'status-steady' : 
+                     data.mobility_status === 'CAUTION' ? 'status-caution' : 'status-declining');
+
+                // Metrics
+                document.getElementById('active-min').innerText = Math.round(data.today_active_minutes) + ' min';
+                document.getElementById('cadence-val').innerText = Math.round(data.cadence_steps_per_min) + ' spm';
+                const wow = data.wow_change_pct;
+                document.getElementById('wow-change').innerText = (wow > 0 ? '+' : '') + wow + '%';
+
+                // Advisories
+                const advBox = document.getElementById('advisory-container');
+                advBox.innerHTML = '';
+                if (data.advisories && data.advisories.length > 0) {
+                    data.advisories.forEach(a => {
+                        const div = document.createElement('div');
+                        div.className = 'advisory-box';
+                        div.innerHTML = `<strong>Advisory:</strong> ${a.reason}`;
+                        advBox.appendChild(div);
+                    });
+                }
+
+                // History
+                const histList = document.getElementById('history-list');
+                histList.innerHTML = '';
+                if (!data.recent_days || data.recent_days.length === 0) {
+                    histList.innerHTML = '<div style="color: #94a3b8; text-align: center;">No activity recorded yet.</div>';
+                    return;
+                }
+                data.recent_days.slice().reverse().forEach(d => {
+                    const row = document.createElement('div');
+                    row.className = 'history-item';
+                    row.innerHTML = `
+                        <div><strong>${d.record_date}</strong></div>
+                        <div>${Math.round(d.active_minutes)} mins active &bull; ${Math.round(d.cadence_spm)} steps/min</div>
+                        <div>${d.falls_count > 0 ? '<span style="color: #ef4444; font-weight: bold;">Fall Event</span>' : '<span style="color: #10b981;">No Incidents</span>'}</div>
+                    `;
+                    histList.appendChild(row);
+                });
+            } catch (e) {
+                console.error('Error fetching family summary:', e);
+            }
+        }
+        fetchFamilyData();
+    </script>
+</body>
+</html>

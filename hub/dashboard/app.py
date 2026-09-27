@@ -203,6 +203,24 @@ try:
     app.include_router(fleet_router)
 except Exception as e:
     logger.warning(f"Could not load fleet router: {e}")
+
+try:
+    from hub.voice_api import router as voice_router
+    app.include_router(voice_router)
+except Exception as e:
+    logger.warning(f"Could not load voice router: {e}")
+
+try:
+    from hub.smart_home_api import router as smart_home_router
+    app.include_router(smart_home_router)
+except Exception as e:
+    logger.warning(f"Could not load smart_home router: {e}")
+
+try:
+    from hub.family_api import router as family_router
+    app.include_router(family_router)
+except Exception as e:
+    logger.warning(f"Could not load family router: {e}")
 @app.get("/")
 async def get_index():
     index_path = STATIC_DIR / "index.html"
@@ -216,6 +234,22 @@ async def get_fleet_page():
     path = STATIC_DIR / "fleet.html"
     if not path.exists():
         return JSONResponse({"error": "fleet.html not found"}, status_code=404)
+    return FileResponse(path, media_type="text/html")
+
+
+@app.get("/automations")
+async def get_automations_page():
+    path = STATIC_DIR / "automations.html"
+    if not path.exists():
+        return JSONResponse({"error": "automations.html not found"}, status_code=404)
+    return FileResponse(path, media_type="text/html")
+
+
+@app.get("/family")
+async def get_family_page():
+    path = STATIC_DIR / "family.html"
+    if not path.exists():
+        return JSONResponse({"error": "family.html not found"}, status_code=404)
     return FileResponse(path, media_type="text/html")
 
 

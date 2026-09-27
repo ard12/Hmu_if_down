@@ -1,9 +1,9 @@
 # Software Requirement Traceability Matrix (IEC 62304 / FDA SaMD)
 
 **Specification Version**: v3.3.0  
-**Total Requirements**: 59  
-**Test Coverage**: 100.0% (59/59)  
-**Critical Requirement Coverage**: 100.0% (29/29)  
+**Total Requirements**: 69  
+**Test Coverage**: 100.0% (69/69)  
+**Critical Requirement Coverage**: 100.0% (34/34)  
 
 ## Traceability Matrix
 
@@ -41,13 +41,21 @@
 | `SRS-030` | The system shall provide REST endpoints to dynamically query and update detection sensitivity thresholds. | Safety / Usability | Essential | hub/dashboard/app.py:post_thresholds | tests/test_dashboard.py::test_dashboard_thresholds_api | ✅ Covered |
 | `SRS-031` | The system shall classify graduated alert severities based on Bayesian posterior probabilities. | Safety / Risk Control | Critical | hub/fusion_engine.py:DualFusionEngine._evaluate_consensus | tests/test_bayesian_classifier.py::test_graduated_severity_confirmed_threshold | ✅ Covered |
 | `SRS-032` | The system shall operate reliably across single-modality degraded modes when one sensor fails. | Safety / Risk Control | Critical | hub/fusion_engine.py:DualFusionEngine.process_csi_features | tests/test_integration.py::test_fusion_csi_only_mode | ✅ Covered |
+| `SRS-AUT-001` | The system shall execute environmental safety actions (lighting illumination, door unlocking, robotic obstruction halt) upon verified fall alerts. | Automation | Critical | hub/smart_home_actions.py:SmartHomeActionEngine.trigger_emergency_chain | tests/test_smart_home_actions.py::test_emergency_chain_execution | ✅ Covered |
+| `SRS-AUT-002` | The system shall maintain configurable smart home action chains with retry resilience and dry-run safety testing. | Automation | Essential | hub/smart_home_actions.py:SmartHomeActionEngine._execute_single_action | tests/test_smart_home_actions.py::test_dry_run_safety_mode | ✅ Covered |
+| `SRS-CLN-001` | The system shall automatically generate standardized post-fall clinical incident reports aggregating kinematics, SHAP attribution, vitals, and timeline. | Clinical | Critical | hub/incident_report_generator.py:IncidentReportGenerator.generate_markdown_report | tests/test_incident_report.py::test_markdown_report_generation | ✅ Covered |
+| `SRS-CLN-002` | The system shall map verified fall biomechanics to standardized ICD-10-CM and CPT remote patient monitoring billing codes. | Clinical | Essential | hub/billing_coder.py:BillingCoder.generate_billing_recommendation | tests/test_billing_coder.py::test_billing_recommendation_generation | ✅ Covered |
 | `SRS-FLT-001` | The system shall provide a centralized fleet registry to provision and map edge hubs to specific facilities and rooms. | Fleet | Critical | hub/fleet_manager.py:FleetManager.provision_device | tests/test_fleet_manager.py::test_provision_device | ✅ Covered |
 | `SRS-FLT-002` | The system shall continuously track the health and heartbeat of registered edge hubs, exposing uptime and model version status. | Fleet | Essential | hub/fleet_manager.py:FleetManager.record_heartbeat | tests/test_fleet_manager.py::test_heartbeat_updates_timestamp | ✅ Covered |
 | `SRS-FLT-003` | The system shall securely distribute over-the-air (OTA) ML model updates to edge hubs, enforcing SHA-256 cryptographic verification. | Fleet | Critical | hub/ota_updater.py:OTAManager.generate_update_payload | tests/test_ota_updater.py::test_generate_update_payload | ✅ Covered |
+| `SRS-LNG-001` | The system shall aggregate multi-day longitudinal mobility metrics (cadence, active duration, shuffle) and alert on week-over-week degradation. | Longitudinal | Critical | hub/longitudinal_tracker.py:LongitudinalTracker.record_day | tests/test_longitudinal_tracker.py::test_daily_mobility_recording | ✅ Covered |
+| `SRS-LNG-002` | The system shall provide a dedicated Family Portal and REST API exposing simplified activity trends and proactive fall risk trajectories. | Longitudinal | Essential | hub/family_api.py:get_family_summary | tests/test_longitudinal_tracker.py::test_family_api_endpoints | ✅ Covered |
 | `SRS-MO-001` | The system shall track multiple occupants simultaneously and attribute falls to specific individuals using Hungarian assignment and Kalman filtering. | Algorithm | Critical | D:/Fall_detection/hub/multi_occupant.py:13 | tests/test_multi_occupant.py::test_two_occupants_tracked_separately | ✅ Covered |
 | `SRS-PERF-001` | The system shall accelerate inference using TensorRT FP16/INT8 execution providers with automatic fallback to CPU. | Performance | Critical | D:/Fall_detection/hub/tensorrt_runner.py:61<br>hub/tensorrt_runner.py:TensorRTRunner.predict | tests/test_tensorrt_runner.py::test_predict_returns_inference_result_dataclass | ✅ Covered |
 | `SRS-PERF-002` | The system shall quantise decision boundary thresholds into fixed-point representations for embedded MCU execution. | Performance | Essential | D:/Fall_detection/hub/tinyml_quantizer.py:6<br>hub/tinyml_quantizer.py:TinyMLQuantizer.export_c_header | tests/test_tinyml_quantizer.py::test_evaluate_quantisation_report | ✅ Covered |
 | `SRS-PERF-003` | The system shall dynamically route inference requests across edge, GPU, and CPU execution providers based on latency SLA and thermal state. | Performance | Critical | D:/Fall_detection/hub/offload_manager.py:9<br>hub/offload_manager.py:OffloadManager.decide | tests/test_offload_manager.py::test_default_decision_selects_tensorrt_when_available | ✅ Covered |
+| `SRS-REL-001` | The system shall execute pre-flight startup self-tests verifying cryptographic audit chain continuity, model integrity, and database health. | Reliability | Critical | hub/startup_self_test.py:StartupSelfTest.run_preflight | tests/test_startup_self_test.py::test_full_startup_preflight_passes | ✅ Covered |
+| `SRS-REL-002` | The system shall maintain chaos and stress resilience under socket dropped packets, sensor frame corruption, and memory soak bounds. | Reliability | Essential | hub/diagnostics.py:WatchdogHeartbeat.check_health | tests/test_chaos.py::test_corrupted_udp_datagram_fuzzing | ✅ Covered |
 | `SRS-SEC-001` | The system shall enforce unique user identification via cryptographically signed JWT tokens and RBAC roles (HIPAA §164.312(a)(1)). | Security | Critical | hub/auth.py:verify_token | tests/test_hipaa_validator.py::test_access_control_safeguard_detection | ✅ Covered |
 | `SRS-SEC-002` | The system shall provide emergency break-glass role elevation with mandatory audit logging and expiring tokens (HIPAA §164.312(a)(2)(i)). | Security | Critical | hub/auth.py:create_break_glass_token | tests/test_hipaa_validator.py::test_break_glass_token_functionality | ✅ Covered |
 | `SRS-SEC-003` | The system shall enforce automatic electronic session termination via deterministic JWT expiration timestamps (HIPAA §164.312(a)(2)(ii)). | Security | Essential | hub/auth.py:is_token_expired | tests/test_hipaa_validator.py::test_break_glass_token_functionality | ✅ Covered |
@@ -66,6 +74,8 @@
 | `SRS-UX-001` | The system shall implement progressive notification escalation across multiple tiers halting upon caregiver acknowledgement or patient recovery. | Usability | Critical | D:/Fall_detection/hub/notification_escalator.py:13 | tests/test_notification_escalator.py::test_initial_tier_is_silent_push | ✅ Covered |
 | `SRS-UX-002` | The system shall provide authenticated caregiver APIs for alert acknowledgement, timeline tracking, and shift triage. | Usability | Essential | D:/Fall_detection/hub/caregiver_api.py:7<br>D:/Fall_detection/hub/notification_escalator.py:14 | tests/test_caregiver_api.py::test_register_caregiver_returns_201 | ✅ Covered |
 | `SRS-UX-003` | The system shall track alarm fatigue metrics including ignored alert ratios and response time percentile distributions. | Usability | Essential | *Pending* | tests/test_alert_fatigue.py::test_fatigue_score_zero_when_all_acknowledged | ✅ Covered |
+| `SRS-VOC-001` | The system shall continuously listen for emergency vocal distress keywords and open a two-way audio intercom upon fall confirmation. | Voice | Critical | hub/voice_responder.py:VoiceResponder.process_transcript | tests/test_voice_responder.py::test_distress_keyword_detection | ✅ Covered |
+| `SRS-VOC-002` | The system shall support ambient voice cancellation commands enabling patients to suppress false alarm escalations hands-free. | Voice | Essential | hub/voice_responder.py:VoiceResponder.process_transcript | tests/test_voice_responder.py::test_voice_alert_cancellation | ✅ Covered |
 | `SRS-XAI-001` | The system shall compute local SHAP feature attributions and counterfactual explanations satisfying the local accuracy efficiency axiom. | Explainability | Essential | D:/Fall_detection/hub/explainability.py:10 | tests/test_explainability.py::test_shap_explanation_has_feature_names | ✅ Covered |
 | `SRS-XAI-002` | The system shall generate automated standardized Model Cards documenting quantitative metrics, intended use, and ethical considerations. | Explainability | Essential | *Pending* | tests/test_model_card.py::test_model_card_generates_markdown | ✅ Covered |
 
@@ -73,6 +83,6 @@
 
 | Criticality | Total | Covered | Coverage % |
 |---|---|---|---|
-| Critical | 29 | 29 | 100.0% |
-| Essential | 25 | 25 | 100.0% |
+| Critical | 34 | 34 | 100.0% |
+| Essential | 30 | 30 | 100.0% |
 | Minor | 5 | 5 | 100.0% |

@@ -71,6 +71,16 @@ BASELINE_IMPL_MAP = {
     "SRS-FLT-001": ["hub/fleet_manager.py:FleetManager.provision_device"],
     "SRS-FLT-002": ["hub/fleet_manager.py:FleetManager.record_heartbeat"],
     "SRS-FLT-003": ["hub/ota_updater.py:OTAManager.generate_update_payload"],
+    "SRS-VOC-001": ["hub/voice_responder.py:VoiceResponder.process_transcript"],
+    "SRS-VOC-002": ["hub/voice_responder.py:VoiceResponder.process_transcript"],
+    "SRS-AUT-001": ["hub/smart_home_actions.py:SmartHomeActionEngine.trigger_emergency_chain"],
+    "SRS-AUT-002": ["hub/smart_home_actions.py:SmartHomeActionEngine._execute_single_action"],
+    "SRS-CLN-001": ["hub/incident_report_generator.py:IncidentReportGenerator.generate_markdown_report"],
+    "SRS-CLN-002": ["hub/billing_coder.py:BillingCoder.generate_billing_recommendation"],
+    "SRS-LNG-001": ["hub/longitudinal_tracker.py:LongitudinalTracker.record_day"],
+    "SRS-LNG-002": ["hub/family_api.py:get_family_summary"],
+    "SRS-REL-001": ["hub/startup_self_test.py:StartupSelfTest.run_preflight"],
+    "SRS-REL-002": ["hub/diagnostics.py:WatchdogHeartbeat.check_health"],
 }
 
 BASELINE_TEST_MAP = {
@@ -135,6 +145,16 @@ BASELINE_TEST_MAP = {
     "SRS-FLT-001": ["tests/test_fleet_manager.py::test_provision_device"],
     "SRS-FLT-002": ["tests/test_fleet_manager.py::test_heartbeat_updates_timestamp"],
     "SRS-FLT-003": ["tests/test_ota_updater.py::test_generate_update_payload"],
+    "SRS-VOC-001": ["tests/test_voice_responder.py::test_distress_keyword_detection"],
+    "SRS-VOC-002": ["tests/test_voice_responder.py::test_voice_alert_cancellation"],
+    "SRS-AUT-001": ["tests/test_smart_home_actions.py::test_emergency_chain_execution"],
+    "SRS-AUT-002": ["tests/test_smart_home_actions.py::test_dry_run_safety_mode"],
+    "SRS-CLN-001": ["tests/test_incident_report.py::test_markdown_report_generation"],
+    "SRS-CLN-002": ["tests/test_billing_coder.py::test_billing_recommendation_generation"],
+    "SRS-LNG-001": ["tests/test_longitudinal_tracker.py::test_daily_mobility_recording"],
+    "SRS-LNG-002": ["tests/test_longitudinal_tracker.py::test_family_api_endpoints"],
+    "SRS-REL-001": ["tests/test_startup_self_test.py::test_full_startup_preflight_passes"],
+    "SRS-REL-002": ["tests/test_chaos.py::test_corrupted_udp_datagram_fuzzing"],
 }
 
 

@@ -1,7 +1,7 @@
 # ISO 14971 FMEA Risk Analysis — Fall Detection SaMD v3.x
 
 **Document ID**: RA-ISO14971-V3  
-**Total Hazards Evaluated**: 32  
+**Total Hazards Evaluated**: 37  
 **Standard**: ISO 14971:2019 (Medical devices — Application of risk management to medical devices)  
 **Risk Evaluation Matrix**: Severity (1-5) × Probability (1-5). Acceptability threshold: Residual Risk <= 4.  
 
@@ -41,6 +41,11 @@
 | `HAZ-030` | Clinician misinterpretation of model opacity leading to inappropriate alert overrides | Opaque model predictions without feature attribution or counterfactual rationale | 4 | 2 | **8** | - Local SHAP waterfall feature attribution plots for individual predictions<br>- Automated Model Card documentation conforming to Google/FDA GMLP principles<br>- Counterfactual explanation engine detailing required minimal kinematic shifts | **2** | ✅ YES |
 | `HAZ-031` | Compromised Over-The-Air (OTA) payload execution on Edge Hubs | Man-in-the-middle attack or unauthorized access to fleet orchestrator | 5 | 2 | **10** | - Strict SHA-256 cryptographic verification of all incoming payloads before application<br>- TLS encryption for all OTA transit operations<br>- Role-based access control (RBAC) bounding for OTA deployment endpoints | **3** | ✅ YES |
 | `HAZ-032` | Mass fleet disconnection or silent edge failure | Network outage or orchestration server crash | 4 | 3 | **12** | - Periodic heartbeat tracking in Fleet Registry with stale-device alarms<br>- Autonomous edge fallback to local alerting if central orchestrator is unreachable<br>- Fleet Dashboard exposes version fragmentation and offline device matrices | **3** | ✅ YES |
+| `HAZ-033` | Unrecognized vocal distress keyword or audio clipping in high-noise ambient environment | Acoustic echo, TV background noise, or patient vocal weakness following trauma | 4 | 2 | **8** | - Phonetic Levenshtein-tolerant keyword spotting and energy envelope normalization<br>- Dual-modality confirmation: voice serves as trigger/cancellation accelerator without overriding RF/radar fall detection<br>- Automatic escalation to caregiver intercom channel on high-uncertainty distress audio | **2** | ✅ YES |
+| `HAZ-034` | Smart home peripheral failure (door lock, lighting, thermostat) during critical emergency response | Zigbee/Z-Wave/MQTT broker connection timeout or peripheral battery exhaustion | 3 | 2 | **6** | - Action execution retries with exponential backoff and independent non-blocking workers<br>- Secondary fallback to siren and caregiver phone notification if locks fail to acknowledge<br>- Configurable dry-run self-test mode with audit logging for smart device reliability | **2** | ✅ YES |
+| `HAZ-035` | Post-fall incident documentation omission or erroneous billing code assignment | Unmapped biomechanics class or asynchronous sensor telemetry drop | 3 | 2 | **6** | - Deterministic fallback mapping to ICD-10 W19.XXXA (unspecified fall initial encounter)<br>- Schema validation against HL7 FHIR DiagnosticReport specifications<br>- Clinical review flag requiring attending provider signature before insurance transmission | **2** | ✅ YES |
+| `HAZ-036` | Subtle longitudinal gait or mobility degradation unnoticed due to lack of trending alerts | Gradual frailty progression or post-medication sedation across weeks | 3 | 3 | **9** | - Rolling 7-day and 30-day baseline trend tracking with statistical divergence detection<br>- Proactive family and caregiver push alerts when week-over-week cadence drops >15%<br>- Automated correlation with FRAX 10-year fracture risk score trajectories | **2** | ✅ YES |
+| `HAZ-037` | System crash loop or silent hang following unhandled sensor frame corruption or database corruption | Unexpected UDP datagram truncation, buffer exhaustion, or power cut mid-write | 5 | 2 | **10** | - Automated pre-flight startup self-test verifying database schema, model hashes, and genesis block<br>- Frame parsing defensive bounds checking and discard metrics<br>- Watchdog heartbeat monitoring with automatic process resurrection | **2** | ✅ YES |
 
 ## Risk Matrix Summary
 
