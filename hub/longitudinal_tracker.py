@@ -5,6 +5,7 @@ shuffle index, and FRAX risk trajectories. Emits early warning advisories
 when week-over-week physical mobility degrades.
 """
 
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 import datetime
 import logging
@@ -63,18 +64,28 @@ class LongitudinalTracker:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self.db_path))
+    @contextmanager
+    def _connect(self):
+        conn = sqlite3.connect(str(self.db_path), timeout=15.0)
         conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def _init_db(self) -> None:
         with self._connect() as conn:
             conn.execute(_SCHEMA)
-            conn.commit()
 
     def record_day(self, record: DailyMobilityRecord) -> None:
         """Insert or replace daily aggregated mobility metrics for a patient."""
+        safe_cadence = max(0.0, float(record.cadence_spm))
+        safe_active = max(0.0, float(record.active_minutes))
+        safe_shuffle = max(0.0, float(record.shuffle_index))
+        safe_frax = max(0.0, float(record.frax_score))
+        safe_falls = max(0, int(record.falls_count))
+
         with self._connect() as conn:
             conn.execute(
                 """
@@ -85,11 +96,11 @@ class LongitudinalTracker:
                 (
                     record.patient_id,
                     record.record_date,
-                    record.cadence_spm,
-                    record.active_minutes,
-                    record.shuffle_index,
-                    record.frax_score,
-                    record.falls_count,
+                    safe_cadence,
+                    safe_active,
+                    safe_shuffle,
+                    safe_frax,
+                    safe_falls,
                 ),
             )
             conn.commit()
@@ -106,7 +117,7 @@ class LongitudinalTracker:
                 ORDER BY record_date ASC
                 LIMIT ?
                 """,
-                (patient_id, days),
+                (patient_id, max(1, int(days))),
             ).fetchall()
             return [dict(r) for r in rows]
 
@@ -128,9 +139,19 @@ class LongitudinalTracker:
             }
 
         # Divide into previous week vs current week
-        midpoint = len(history) // 2
+        midpoint = max(1, len(history) // 2)
         prev_week = history[:midpoint]
         curr_week = history[midpoint:]
+
+        if not prev_week or not curr_week:
+            return {
+                "patient_id": patient_id,
+                "status": "INSUFFICIENT_DATA",
+                "status_label": "Baseline Establishing",
+                "wow_cadence_change_pct": 0.0,
+                "advisories": [],
+                "days_tracked": len(history),
+            }
 
         prev_avg_cadence = sum(r["cadence_spm"] for r in prev_week) / len(prev_week)
         curr_avg_cadence = sum(r["cadence_spm"] for r in curr_week) / len(curr_week)

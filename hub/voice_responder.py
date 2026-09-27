@@ -10,7 +10,7 @@ import logging
 import math
 import re
 import time
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 logger = logging.getLogger("voice_responder")
 
@@ -30,7 +30,7 @@ class VoiceEvent:
     event_type: str  # "DISTRESS_KEYWORD", "CANCEL_KEYWORD", "AUDIO_ENERGY_SURGE", "INTERCOM_OPEN"
     phrase: str
     confidence: float
-    metadata: Dict[str, any] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 class VoiceResponder:
@@ -140,6 +140,8 @@ class VoiceResponder:
         self, transcript: str, confidence: float = 1.0
     ) -> Optional[VoiceEvent]:
         """Process speech-to-text transcript from ambient room microphone."""
+        if not transcript or not isinstance(transcript, str):
+            return None
         now = time.time()
         # 1. Check for cancellation first (patient calling out that they are fine)
         cancel_target, cancel_score = self._match_phrase_list(
@@ -197,8 +199,11 @@ class VoiceResponder:
         """Calculate RMS signal energy in dBFS from normalized PCM float samples [-1.0, 1.0]."""
         if not pcm_samples:
             return -100.0
-        sum_sq = sum(s * s for s in pcm_samples)
-        rms = math.sqrt(sum_sq / len(pcm_samples))
+        valid_samples = [s for s in pcm_samples if not (math.isnan(s) or math.isinf(s))]
+        if not valid_samples:
+            return -100.0
+        sum_sq = sum(s * s for s in valid_samples)
+        rms = math.sqrt(sum_sq / len(valid_samples))
         if rms <= 1e-6:
             return -100.0
         db = 20.0 * math.log10(rms)
@@ -230,7 +235,7 @@ class VoiceResponder:
         logger.info(f"[{self.room_id}] Intercom channel closed.")
         return True
 
-    def get_status(self) -> Dict[str, any]:
+    def get_status(self) -> Dict[str, Any]:
         """Return diagnostic health and status metrics for voice subsystem."""
         return {
             "room_id": self.room_id,

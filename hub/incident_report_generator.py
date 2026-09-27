@@ -47,7 +47,8 @@ class IncidentReportGenerator:
 
     def generate_markdown_report(self, data: IncidentReportData) -> str:
         """Render a formatted clinical incident report in Markdown."""
-        dt_str = datetime.datetime.fromtimestamp(data.timestamp).strftime(
+        safe_timestamp = max(0.0, float(data.timestamp or 0.0))
+        dt_str = datetime.datetime.fromtimestamp(safe_timestamp).strftime(
             "%Y-%m-%d %H:%M:%S UTC"
         )
         billing = billing_coder.generate_billing_recommendation(
@@ -74,7 +75,7 @@ class IncidentReportGenerator:
 ## 2. Explainable AI (XAI) Attribution & SHAP Waterfall
 The multi-modal decision was driven by the following feature attributions (Efficiency Axiom verified):
 """
-        for feat in data.shap_top_features[:4]:
+        for feat in (data.shap_top_features or [])[:4]:
             val = feat.get("value", 0.0)
             imp = feat.get("importance", 0.0)
             name = feat.get("name", "feature")
@@ -120,7 +121,8 @@ I have reviewed the objective sensor telemetry, kinematic trajectories, and pati
 
     def generate_fhir_diagnostic_report(self, data: IncidentReportData) -> Dict[str, Any]:
         """Generate an HL7 FHIR R4 DiagnosticReport resource JSON representation."""
-        dt_iso = datetime.datetime.fromtimestamp(data.timestamp).isoformat()
+        safe_ts = max(0.0, float(data.timestamp or 0.0))
+        dt_iso = datetime.datetime.fromtimestamp(safe_ts).isoformat()
         billing = billing_coder.generate_billing_recommendation(data.biomechanics_class)
 
         return {

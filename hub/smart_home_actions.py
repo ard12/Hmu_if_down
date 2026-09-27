@@ -8,6 +8,7 @@ and ambient temperature stabilization to prevent hypothermia.
 from dataclasses import dataclass, field
 from enum import Enum
 import logging
+import threading
 import time
 from typing import Any, Callable, Dict, List, Optional
 
@@ -85,7 +86,8 @@ class SmartHomeActionEngine:
     ]
 
     def __init__(self, max_retries: int = 2):
-        self.max_retries = max_retries
+        self.max_retries = max(0, int(max_retries))
+        self._lock = threading.Lock()
         self.rules: Dict[str, AutomationRule] = {
             r.rule_id: r for r in self.DEFAULT_RULES
         }
@@ -94,18 +96,21 @@ class SmartHomeActionEngine:
 
     def set_custom_executor(self, executor: Callable[[ActionRecord], bool]) -> None:
         """Allow custom MQTT or Home Assistant client executor to be injected."""
-        self._custom_executor = executor
+        with self._lock:
+            self._custom_executor = executor
 
     def add_rule(self, rule: AutomationRule) -> None:
         """Add or update an automation rule."""
-        self.rules[rule.rule_id] = rule
+        with self._lock:
+            self.rules[rule.rule_id] = rule
 
     def set_rule_enabled(self, rule_id: str, enabled: bool) -> bool:
         """Toggle an automation rule on or off."""
-        if rule_id in self.rules:
-            self.rules[rule_id].enabled = enabled
-            return True
-        return False
+        with self._lock:
+            if rule_id in self.rules:
+                self.rules[rule_id].enabled = enabled
+                return True
+            return False
 
     def _execute_single_action(
         self, action_type: AutomationActionType, target: str, params: Dict[str, Any], dry_run: bool
@@ -122,7 +127,8 @@ class SmartHomeActionEngine:
 
         if dry_run:
             logger.info(f"[DRY_RUN] Dispatched {action_type.value} to {target} (params={params})")
-            self.action_history.append(record)
+            with self._lock:
+                self.action_history.append(record)
             return record
 
         for attempt in range(self.max_retries + 1):
@@ -148,7 +154,8 @@ class SmartHomeActionEngine:
                 if attempt == self.max_retries:
                     record.status = ActionStatus.FAILED
 
-        self.action_history.append(record)
+        with self._lock:
+            self.action_history.append(record)
         return record
 
     def trigger_emergency_chain(
@@ -200,6 +207,8 @@ class SmartHomeActionEngine:
 
     def get_history(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Retrieve recent action dispatch logs."""
+        with self._lock:
+            history_slice = self.action_history[-limit:]
         return [
             {
                 "action": r.action_type.value,
@@ -210,7 +219,7 @@ class SmartHomeActionEngine:
                 "error": r.error_message,
                 "params": r.parameters,
             }
-            for r in self.action_history[-limit:]
+            for r in history_slice
         ]
 
 

@@ -19,6 +19,8 @@ class OTAManager:
         Package a model into an OTA payload with a cryptographic SHA-256 hash.
         In a real deployment, this would be signed with a private key.
         """
+        if model_bytes is None or not isinstance(model_bytes, (bytes, bytearray)):
+            raise ValueError("model_bytes must be a non-null bytes or bytearray instance")
         payload_hash = hashlib.sha256(model_bytes).hexdigest()
         
         deployment_id = f"ota_{payload_hash[:8]}"

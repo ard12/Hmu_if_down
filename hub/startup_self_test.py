@@ -42,10 +42,12 @@ class StartupSelfTest:
             audits_dir = self.project_root / "audits"
             audits_dir.mkdir(parents=True, exist_ok=True)
             db_path = audits_dir / "audit_log.db"
-            conn = sqlite3.connect(str(db_path))
-            conn.execute("CREATE TABLE IF NOT EXISTS _preflight_test (id INT)")
-            conn.execute("DROP TABLE _preflight_test")
-            conn.close()
+            conn = sqlite3.connect(str(db_path), timeout=10.0)
+            try:
+                conn.execute("CREATE TABLE IF NOT EXISTS _preflight_test (id INT)")
+                conn.execute("DROP TABLE _preflight_test")
+            finally:
+                conn.close()
             return True, None
         except Exception as e:
             return False, f"Audit database check failed: {e}"
@@ -74,12 +76,17 @@ class StartupSelfTest:
         for s in subdirs:
             p = self.project_root / s
             p.mkdir(parents=True, exist_ok=True)
-            test_file = p / f".perm_test_{os.getpid()}"
+            test_file = p / f".perm_test_{os.getpid()}_{time.time()}"
             try:
                 test_file.write_text("ok", encoding="utf-8")
-                test_file.unlink()
             except Exception as e:
                 return False, f"Directory '{s}' is not writable: {e}"
+            finally:
+                if test_file.exists():
+                    try:
+                        test_file.unlink()
+                    except Exception:
+                        pass
         return True, None
 
     def run_preflight(self) -> PreflightReport:

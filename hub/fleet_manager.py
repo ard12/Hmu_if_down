@@ -1,6 +1,7 @@
 """
 Fleet Management Module — Handles Edge Hub provisioning and heartbeat monitoring.
 """
+from contextlib import contextmanager
 import sqlite3
 import time
 import logging
@@ -36,15 +37,19 @@ class FleetManager:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self.db_path))
+    @contextmanager
+    def _connect(self):
+        conn = sqlite3.connect(str(self.db_path), timeout=15.0)
         conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def _init_db(self) -> None:
         with self._connect() as conn:
             conn.execute(_SCHEMA)
-            conn.commit()
 
     def provision_device(self, facility_id: str, room_id: str, firmware_ver: str, model_ver: str) -> str:
         """Securely provision a new Edge Hub and return its device_id."""
