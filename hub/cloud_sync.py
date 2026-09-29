@@ -5,6 +5,7 @@ to central nursing facility portals and hospital EHR endpoints.
 Guarantees offline resilience via SQLite queueing with exponential backoff retries.
 """
 
+from contextlib import contextmanager
 import json
 import logging
 import os
@@ -78,10 +79,15 @@ class CloudSyncGateway:
 
         self._init_db()
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self.db_path))
+    @contextmanager
+    def _connect(self):
+        conn = sqlite3.connect(str(self.db_path), timeout=15.0)
         conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def _init_db(self) -> None:
         with self._connect() as conn:

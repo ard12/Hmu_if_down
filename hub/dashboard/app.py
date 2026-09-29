@@ -4,7 +4,7 @@ import asyncio
 from collections import deque
 from contextlib import asynccontextmanager
 import csv
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 from pathlib import Path
@@ -419,7 +419,10 @@ async def get_datasets():
         datasets.append({
             "filename": npz_file.name,
             "size_bytes": stat.st_size,
-            "recorded_at": meta.get("recorded_at", datetime.fromtimestamp(stat.st_mtime).isoformat()),
+            "recorded_at": meta.get(
+                "recorded_at",
+                datetime.fromtimestamp(max(0.0, float(stat.st_mtime)), tz=timezone.utc).isoformat(),
+            ),
             "label": meta.get("label", npz_file.stem.split("_")[0]),
             "subject_id": meta.get("subject_id", "unknown"),
             "csi_samples": meta.get("csi_samples", 0),
@@ -578,7 +581,7 @@ async def post_fhir_export(
             "status": "success",
             "filename": out_path.name,
             "path": str(out_path),
-            "exported_at": datetime.utcnow().isoformat() + "Z",
+            "exported_at": datetime.now(timezone.utc).isoformat(),
         }
     except Exception as exc:
         logger.error("FHIR export error: %s", exc)

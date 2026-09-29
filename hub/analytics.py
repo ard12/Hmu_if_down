@@ -246,10 +246,13 @@ class FallAnalytics:
                     e.get("state") != "acknowledged" and not e.get("acknowledged_at")
                 ):
                     st = e.get("start_time")
-                    if st:
-                        dt = datetime.fromtimestamp(st, tz=timezone.utc)
-                        if dt >= cutoff:
-                            hourly_counts[dt.hour] += 1
+                    if st is not None:
+                        try:
+                            dt = datetime.fromtimestamp(max(0.0, float(st)), tz=timezone.utc)
+                            if dt >= cutoff:
+                                hourly_counts[dt.hour] += 1
+                        except (ValueError, TypeError, OSError):
+                            pass
         else:
             expired = self.audit_log.query(event_type="ALERT_EXPIRED", limit=10000)
             for ex in expired:

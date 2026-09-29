@@ -150,19 +150,25 @@ class AlertDispatcher:
                 except Exception as e:
                     print(f"[AlertDispatcher] MQTT publish error: {e}", file=sys.stderr)
 
-            # Webhook notification
+            # Webhook notification (validated for http/https schemes to prevent SSRF)
             if self._webhook_url is not None:
-                try:
-                    req = urllib.request.Request(
-                        self._webhook_url,
-                        data=payload_json.encode("utf-8"),
-                        headers={"Content-Type": "application/json"},
+                if self._webhook_url.startswith(("http://", "https://")):
+                    try:
+                        req = urllib.request.Request(
+                            self._webhook_url,
+                            data=payload_json.encode("utf-8"),
+                            headers={"Content-Type": "application/json"},
+                        )
+                        resp = urllib.request.urlopen(req, timeout=5.0)
+                        if hasattr(resp, "close"):
+                            resp.close()
+                    except Exception as e:
+                        print(f"[AlertDispatcher] Webhook error: {e}", file=sys.stderr)
+                else:
+                    print(
+                        f"[AlertDispatcher] Warning: Rejected webhook with untrusted scheme: {self._webhook_url}",
+                        file=sys.stderr,
                     )
-                    resp = urllib.request.urlopen(req, timeout=5.0)
-                    if hasattr(resp, "close"):
-                        resp.close()
-                except Exception as e:
-                    print(f"[AlertDispatcher] Webhook error: {e}", file=sys.stderr)
 
             # Web HUD broadcast (decoupled callback or lazy import fallback)
             if self.on_alert is not None:
