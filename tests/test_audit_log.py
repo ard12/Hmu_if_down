@@ -198,3 +198,30 @@ def test_api_audit_verify_intact_chain(tmp_path):
         assert data["total_events"] == 2
     finally:
         broadcaster.audit_log = None
+
+
+def test_break_glass_audit_logging(tmp_path, monkeypatch):
+    """
+    Covers: SRS-SEC-004, HAZ-021
+    F-10, F-21: Verifies emergency break-glass token generation records a SECURITY_EVENT
+    into the immutable audit chain.
+    """
+    from hub.auth import create_break_glass_token
+    from hub.audit_log import AuditLog
+    test_db = tmp_path / "test_break_glass_audit.db"
+    audit = AuditLog(db_path=test_db)
+    
+    # Patch AuditLog instantiation inside auth module to use test_db
+    monkeypatch.setattr("hub.audit_log.AuditLog", lambda *args, **kwargs: audit)
+
+    token = create_break_glass_token(user_id="dr_house", reason="Code Blue override in Room 4", ttl_seconds=1800)
+    assert token.startswith("break_glass_")
+
+    records = audit.query(event_type="SECURITY_EVENT")
+    assert len(records) == 1
+    assert records[0]["payload"]["action"] == "BREAK_GLASS_ACCESS"
+    assert records[0]["payload"]["user_id"] == "dr_house"
+
+    ok, broken = audit.verify_chain()
+    assert ok is True
+    assert broken is None

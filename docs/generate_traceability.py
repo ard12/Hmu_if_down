@@ -100,7 +100,6 @@ BASELINE_TEST_MAP = {
     "SRS-014": ["tests/test_ha_discovery.py::test_build_discovery_configs_structure"],
     "SRS-015": ["tests/test_room_manager.py::test_room_manager_isolates_different_rooms"],
     "SRS-016": ["tests/test_integration.py::test_alert_dispatcher_cooldown"],
-    "tests/test_dashboard.py::test_dashboard_index_route": ["SRS-017"],
     "SRS-017": ["tests/test_dashboard.py::test_dashboard_index_route"],
     "SRS-018": ["tests/test_bayesian_classifier.py::test_calibrated_classifier_probability_in_range"],
     "SRS-019": ["tests/test_fall_type_classifier.py::test_fall_type_predict_returns_valid_label"],

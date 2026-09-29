@@ -30,8 +30,9 @@ def test_heartbeat_updates_timestamp(temp_fleet_db):
     """
     device_id = temp_fleet_db.provision_device("FAC-1", "ROOM-102", "v1.0", "v4.7.0")
     
+    with temp_fleet_db._connect() as conn:
+        conn.execute("UPDATE fleet_devices SET last_seen_at = last_seen_at - 10 WHERE device_id = ?", (device_id,))
     status_before = temp_fleet_db.get_fleet_status()[0]
-    time.sleep(0.1)
     
     # Send heartbeat with a version update
     success = temp_fleet_db.record_heartbeat(device_id, model_ver="v4.7.1")

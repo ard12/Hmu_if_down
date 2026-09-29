@@ -33,6 +33,14 @@ class BillingRecommendation:
     secondary_icd10: List[ClinicalCodeEntry]
     cpt_codes: List[ClinicalCodeEntry]
     notes: str
+    pers_codes: List[ClinicalCodeEntry] = field(default_factory=list)
+    rtm_codes: List[ClinicalCodeEntry] = field(default_factory=list)
+    compliance_disclaimer: str = (
+        "CLINICAL & REGULATORY COMPLIANCE NOTICE: Codes are automated suggestions derived from "
+        "ambient sensor telemetry. CPT RPM codes (99453-99457) require qualified physiologic monitoring. "
+        "For passive fall detection without vital sign parameters, HCPCS PERS (S5160/S5161) or RTM "
+        "(98975/98977) codes should be evaluated. All claims require attending clinician attestation."
+    )
 
 
 class BillingCoder:
@@ -121,6 +129,38 @@ class BillingCoder:
         ),
     ]
 
+    # HCPCS Monitored Personal Emergency Response System (PERS) codes
+    HCPCS_PERS_CODES = [
+        ClinicalCodeEntry(
+            code="S5160",
+            system="HCPCS",
+            description="Emergency response system; installation and testing",
+            reimbursement_category="PERS Installation",
+        ),
+        ClinicalCodeEntry(
+            code="S5161",
+            system="HCPCS",
+            description="Emergency response system; service fee, per month (excludes installation and testing)",
+            reimbursement_category="PERS Monthly Monitoring",
+        ),
+    ]
+
+    # CPT Remote Therapeutic Monitoring (RTM) codes
+    CPT_RTM_CODES = [
+        ClinicalCodeEntry(
+            code="98975",
+            system="CPT",
+            description="Remote therapeutic monitoring (e.g., musculoskeletal system status); initial set-up and patient education",
+            reimbursement_category="RTM Setup",
+        ),
+        ClinicalCodeEntry(
+            code="98977",
+            system="CPT",
+            description="Remote therapeutic monitoring; device(s) supply with scheduled transmission to monitor musculoskeletal system, each 30 days",
+            reimbursement_category="RTM Transmission",
+        ),
+    ]
+
     @classmethod
     def map_biomechanics_to_etiology(cls, biomechanics_label: str) -> str:
         """Normalize biomechanics classifier label to a standard etiology key."""
@@ -162,6 +202,8 @@ class BillingCoder:
             secondary_icd10=secondary,
             cpt_codes=list(self.CPT_RPM_CODES),
             notes=notes,
+            pers_codes=list(self.HCPCS_PERS_CODES),
+            rtm_codes=list(self.CPT_RTM_CODES),
         )
 
 

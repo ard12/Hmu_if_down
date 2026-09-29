@@ -10,6 +10,7 @@ and global feature importance rankings for SaMD compliance:
 @req SRS-XAI-001
 """
 from dataclasses import dataclass, field
+import hashlib
 import logging
 from pathlib import Path
 import pickle
@@ -70,13 +71,23 @@ class SHAPExplainer:
     def _init_default_model(self) -> None:
         """Load trained production model or train a calibrated fallback."""
         model_path = Path("models/calibrated_fall_classifier.pkl")
+        hash_path = Path("models/calibrated_fall_classifier.sha256")
         if model_path.exists():
             try:
+                content = model_path.read_bytes()
+                computed_hash = hashlib.sha256(content).hexdigest()
+                if hash_path.exists():
+                    expected_hash = hash_path.read_text(encoding="utf-8").strip()
+                    if computed_hash != expected_hash:
+                        logger.error(
+                            f"Model integrity violation! SHA-256 {computed_hash} != {expected_hash}. Refusing to load {model_path}."
+                        )
+                        raise ValueError("Model file cryptographic integrity check failed")
                 with open(model_path, "rb") as f:
                     self.model = pickle.load(f)
                 return
             except Exception as e:
-                logger.warning(f"Could not load {model_path}: {e}")
+                logger.warning(f"Could not load {model_path} securely: {e}")
 
         # Train a light HistGradientBoostingClassifier on synthetic data
         from sklearn.ensemble import HistGradientBoostingClassifier

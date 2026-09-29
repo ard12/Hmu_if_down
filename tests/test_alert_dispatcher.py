@@ -118,3 +118,35 @@ def test_network_error_resilience(tmp_path):
     with patch("urllib.request.urlopen", side_effect=OSError("Network unreachable")):
         # Should not raise exception
         dispatcher.trigger_alarm("csi", "FALL_CONFIRMED", "test error resilience")
+
+
+def test_incident_csv_rotation_and_callback(tmp_path):
+    """
+    Covers: SRS-016
+    F-12, F-19: Verifies decoupled on_alert callback and size-based incident CSV rotation.
+    """
+    received_alerts = []
+    def alert_listener(modality, event, details):
+        received_alerts.append((modality, event, details))
+
+    dispatcher = AlertDispatcher(
+        enable_sound=False,
+        log_dir=str(tmp_path),
+        cooldown_sec=0.0,
+        on_alert=alert_listener,
+    )
+
+    dispatcher.trigger_alarm("fusion", "FALL_CONFIRMED", "Patient collapse in Room 101")
+    assert len(received_alerts) == 1
+    assert received_alerts[0][0] == "fusion"
+
+    # Simulate large CSV file (> 10MB) to test rotation
+    with open(dispatcher.csv_path, "wb") as f:
+        f.write(b"0" * (10 * 1024 * 1024 + 100))
+
+    # Next alarm trigger should trigger rotation
+    dispatcher.trigger_alarm("radar", "FALL_CONFIRMED", "Bed fall detected")
+    rotated_files = list(tmp_path.glob("incidents_*.csv"))
+    assert len(rotated_files) >= 1
+    assert dispatcher.csv_path.exists()
+

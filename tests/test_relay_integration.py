@@ -41,6 +41,15 @@ def test_relay_client_start_stop():
     assert st["running"] is False
 
 
+def wait_until(predicate, timeout=1.0, step=0.01):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if predicate():
+            return True
+        time.sleep(step)
+    return predicate()
+
+
 def test_relay_client_ignores_bad_magic():
     """Verify RelayClient rejects packets that do not start with _RELAY_MAGIC."""
     mgr = RoomManager()
@@ -55,8 +64,7 @@ def test_relay_client_ignores_bad_magic():
         sock.sendto(bad_packet, ("127.0.0.1", port))
         sock.close()
 
-        # Wait briefly for packet processing
-        time.sleep(0.1)
+        assert wait_until(lambda: relay.stats()["packets_received"] == 1)
         st = relay.stats()
         assert st["packets_received"] == 1
         assert st["packets_rejected"] == 1
@@ -89,7 +97,7 @@ def test_relay_client_routes_json_to_radar_handler():
         sock.sendto(header + payload, ("127.0.0.1", port))
         sock.close()
 
-        time.sleep(0.1)
+        assert wait_until(lambda: len(radar_received) == 1)
         assert len(radar_received) == 1
         r_id, data = radar_received[0]
         assert r_id == 5
@@ -122,7 +130,7 @@ def test_relay_client_routes_binary_to_csi_handler():
         sock.sendto(header + payload, ("127.0.0.1", port))
         sock.close()
 
-        time.sleep(0.1)
+        assert wait_until(lambda: len(csi_received) == 1)
         assert len(csi_received) == 1
         r_id, data = csi_received[0]
         assert r_id == 3

@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 import threading
 import time
-from typing import Optional
+from typing import Any, Callable, Optional
 import urllib.request
 
 try:
@@ -31,11 +31,15 @@ class AlertDispatcher:
         mqtt_port: int = 1883,
         mqtt_topic: str = "falldetect/alert",
         webhook_url: Optional[str] = None,
+        on_alert: Optional[Callable[[str, str, str], None]] = None,
+        audit_log: Optional[Any] = None,
     ):
         self.enable_sound = enable_sound
         self.beep_freq = beep_freq
         self.beep_duration_ms = beep_duration_ms
         self.cooldown_sec = cooldown_sec
+        self.on_alert = on_alert
+        self.audit_log = audit_log
 
         self.last_alert_time: float = 0.0
         self._beeping = False
@@ -113,8 +117,13 @@ class AlertDispatcher:
 
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-            # Log incident to disk
+            # Log incident to disk with size-based rotation (max 10MB)
             try:
+                if self.csv_path.exists() and self.csv_path.stat().st_size > 10 * 1024 * 1024:
+                    rotated = self.log_dir / f"incidents_{int(time.time())}.csv"
+                    self.csv_path.rename(rotated)
+                    self._init_csv()
+
                 with open(self.csv_path, "a", newline="", encoding="utf-8") as f:
                     writer = csv.writer(f)
                     writer.writerow([timestamp, modality, event_name, details])
@@ -155,25 +164,36 @@ class AlertDispatcher:
                 except Exception as e:
                     print(f"[AlertDispatcher] Webhook error: {e}", file=sys.stderr)
 
-            # Web HUD broadcast
+            # Web HUD broadcast (decoupled callback or lazy import fallback)
+            if self.on_alert is not None:
+                try:
+                    self.on_alert(modality, event_name, details)
+                except Exception as e:
+                    print(f"[AlertDispatcher] on_alert callback error: {e}", file=sys.stderr)
+            else:
+                try:
+                    from hub.dashboard.app import broadcaster
+                    broadcaster.trigger_alert(modality, event_name, details)
+                except Exception:
+                    pass
+
+    def _append_audit(self, event_type: str, modality: str, event_name: str, details: str) -> None:
+        """Write an event to the AuditLog via injected instance or broadcaster fallback."""
+        payload = {
+            "modality": modality,
+            "event": event_name,
+            "details": details,
+        }
+        if self.audit_log is not None:
             try:
-                from hub.dashboard.app import broadcaster
-                broadcaster.trigger_alert(modality, event_name, details)
+                self.audit_log.append(event_type, payload=payload)
+                return
             except Exception:
                 pass
 
-    def _append_audit(self, event_type: str, modality: str, event_name: str, details: str) -> None:
-        """Write an event to the AuditLog if one is wired up via the broadcaster."""
         try:
             from hub.dashboard.app import broadcaster
             if broadcaster.audit_log is not None:
-                broadcaster.audit_log.append(
-                    event_type,
-                    payload={
-                        "modality": modality,
-                        "event": event_name,
-                        "details": details,
-                    },
-                )
+                broadcaster.audit_log.append(event_type, payload=payload)
         except Exception:
             pass

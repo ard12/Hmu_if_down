@@ -7,11 +7,14 @@ services:
       dockerfile: deploy/Dockerfile
     container_name: fall_detection_hub
     restart: unless-stopped
-    # host networking allows zero-latency reception of UDP CSI and radar multicast/broadcast frames
-    network_mode: "host"
+    ports:
+      - "8000:8000"
+      - "5555:5555/udp"
+      - "5556:5556/udp"
     volumes:
       - ../incidents:/app/incidents
       - ../datasets:/app/datasets
+      - ../audits:/app/audits
       - ../config:/app/config:ro
     environment:
       - PYTHONUNBUFFERED=1

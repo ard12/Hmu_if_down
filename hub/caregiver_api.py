@@ -11,6 +11,7 @@ import hashlib
 import json
 import logging
 import secrets
+import threading
 import time
 from typing import Any, Dict, List, Optional
 
@@ -52,11 +53,41 @@ class CaregiverManager:
 
     def __init__(self):
         self._caregivers: Dict[str, CaregiverProfile] = {}
+        self._lock = threading.Lock()
+
+    @staticmethod
+    def _hash_password(password: str, salt: Optional[str] = None) -> str:
+        """Derive salted PBKDF2-HMAC-SHA256 hash (100,000 iterations)."""
+        if salt is None:
+            salt = secrets.token_hex(16)
+        key = hashlib.pbkdf2_hmac(
+            "sha256",
+            password.encode("utf-8"),
+            salt.encode("utf-8"),
+            iterations=100_000,
+        )
+        return f"{salt}${key.hex()}"
+
+    @staticmethod
+    def _verify_password(password: str, stored_hash: str) -> bool:
+        """Verify password against salted PBKDF2 hash or legacy SHA-256."""
+        if "$" in stored_hash:
+            salt, key_hex = stored_hash.split("$", 1)
+            computed = hashlib.pbkdf2_hmac(
+                "sha256",
+                password.encode("utf-8"),
+                salt.encode("utf-8"),
+                iterations=100_000,
+            )
+            return secrets.compare_digest(computed.hex(), key_hex)
+        else:
+            legacy = hashlib.sha256(password.encode("utf-8")).hexdigest()
+            return secrets.compare_digest(legacy, stored_hash)
 
     def register(
         self, caregiver_id: str, name: str, phone: str, email: str, role: str, password: str
     ) -> CaregiverProfile:
-        pwd_hash = hashlib.sha256(password.encode("utf-8")).hexdigest()
+        pwd_hash = self._hash_password(password)
         profile = CaregiverProfile(
             caregiver_id=caregiver_id,
             name=name,
@@ -66,15 +97,16 @@ class CaregiverManager:
             password_hash=pwd_hash,
             registered_at=time.time(),
         )
-        self._caregivers[caregiver_id] = profile
+        with self._lock:
+            self._caregivers[caregiver_id] = profile
         return profile
 
     def authenticate(self, caregiver_id: str, password: str) -> Optional[str]:
-        if caregiver_id not in self._caregivers:
+        with self._lock:
+            profile = self._caregivers.get(caregiver_id)
+        if not profile:
             return None
-        profile = self._caregivers[caregiver_id]
-        pwd_hash = hashlib.sha256(password.encode("utf-8")).hexdigest()
-        if profile.password_hash != pwd_hash:
+        if not self._verify_password(password, profile.password_hash):
             return None
 
         # Issue token valid for 1 hour
@@ -89,10 +121,12 @@ class CaregiverManager:
         return token
 
     def get(self, caregiver_id: str) -> Optional[CaregiverProfile]:
-        return self._caregivers.get(caregiver_id)
+        with self._lock:
+            return self._caregivers.get(caregiver_id)
 
     def list_caregivers(self) -> List[CaregiverProfile]:
-        return list(self._caregivers.values())
+        with self._lock:
+            return list(self._caregivers.values())
 
 
 # Singleton manager

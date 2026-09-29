@@ -60,3 +60,26 @@ def test_deterministic_unspecified_fallback(coder):
     )
     assert rec.primary_icd10.code == "W19.XXXA"
     assert "unspecified" in rec.primary_icd10.description.lower()
+
+
+def test_pers_rtm_codes_and_disclaimer(coder):
+    """
+    Covers: SRS-CLN-002, HAZ-035
+    F-07: Verifies inclusion of HCPCS PERS (S5160/S5161) and RTM (98975/98977) codes
+    and clinical review compliance notice to prevent False Claims Act misclassification.
+    """
+    rec = coder.generate_billing_recommendation(biomechanics_label="chair_fall")
+    
+    # Check PERS codes
+    pers_codes = [c.code for c in rec.pers_codes]
+    assert "S5160" in pers_codes
+    assert "S5161" in pers_codes
+
+    # Check RTM codes
+    rtm_codes = [c.code for c in rec.rtm_codes]
+    assert "98975" in rtm_codes
+    assert "98977" in rtm_codes
+
+    # Check compliance disclaimer
+    assert "CLINICAL & REGULATORY COMPLIANCE NOTICE" in rec.compliance_disclaimer
+    assert "attending clinician attestation" in rec.compliance_disclaimer

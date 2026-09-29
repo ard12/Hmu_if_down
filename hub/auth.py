@@ -18,6 +18,7 @@ If config/api_tokens.yaml does not exist, all admin requests are DENIED
 """
 
 import logging
+import threading
 import time
 from pathlib import Path
 from typing import Optional
@@ -34,12 +35,13 @@ _bearer_scheme = HTTPBearer(auto_error=False)
 
 # In-memory token cache (refreshed on first import or manual call to reload_tokens)
 _token_store: dict = {}
+_token_lock = threading.Lock()
 
 
 def reload_tokens() -> None:
     """Load or reload token definitions from config/api_tokens.yaml."""
     global _token_store
-    _token_store = {}
+    new_store = {}
 
     if not _TOKENS_FILE.exists():
         logger.warning(
@@ -47,6 +49,8 @@ def reload_tokens() -> None:
             "Copy config/api_tokens.yaml.template to enable authenticated endpoints.",
             _TOKENS_FILE,
         )
+        with _token_lock:
+            _token_store = new_store
         return
 
     try:
@@ -55,13 +59,15 @@ def reload_tokens() -> None:
         with open(_TOKENS_FILE, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
-        tokens = data.get("tokens", {})
+        tokens = data.get("tokens", {}) if data else {}
         for token, meta in tokens.items():
-            _token_store[str(token)] = {
+            new_store[str(token)] = {
                 "role": meta.get("role", "viewer"),
                 "description": meta.get("description", ""),
             }
-        logger.info("Loaded %d API tokens from %s", len(_token_store), _TOKENS_FILE)
+        with _token_lock:
+            _token_store = new_store
+        logger.info("Loaded %d API tokens from %s", len(new_store), _TOKENS_FILE)
     except Exception as exc:
         logger.error("Failed to load api_tokens.yaml: %s", exc)
 
@@ -95,21 +101,39 @@ def create_break_glass_token(user_id: str, reason: str, ttl_seconds: int = 3600)
 
     token = f"break_glass_{secrets.token_hex(16)}"
     exp_time = time.time() + ttl_seconds
-    _token_store[token] = {
-        "role": "emergency",
-        "sub": user_id,
-        "reason": reason,
-        "exp": exp_time,
-        "emergency": True,
-        "break_glass": True,
-        "description": f"Emergency Break-Glass access for {user_id}: {reason}",
-    }
+    with _token_lock:
+        _token_store[token] = {
+            "role": "emergency",
+            "sub": user_id,
+            "reason": reason,
+            "exp": exp_time,
+            "emergency": True,
+            "break_glass": True,
+            "description": f"Emergency Break-Glass access for {user_id}: {reason}",
+        }
     logger.warning(
         "EMERGENCY BREAK-GLASS ACCESS GRANTED to user=%s reason=%s (expires in %ds)",
         user_id,
         reason,
         ttl_seconds,
     )
+
+    # Persist immutable audit log record for regulatory emergency access traceability
+    try:
+        from hub.audit_log import AuditLog
+        audit = AuditLog()
+        audit.append(
+            event_type="SECURITY_EVENT",
+            payload={
+                "action": "BREAK_GLASS_ACCESS",
+                "user_id": user_id,
+                "reason": reason,
+                "ttl_seconds": ttl_seconds,
+            },
+        )
+    except Exception as exc:
+        logger.error("Failed to record break-glass audit event: %s", exc)
+
     return token
 
 
@@ -117,7 +141,8 @@ def _get_token_meta(token: Optional[str]) -> Optional[dict]:
     """Return token metadata dict, or None if not found or expired."""
     if not token:
         return None
-    meta = _token_store.get(token)
+    with _token_lock:
+        meta = _token_store.get(token)
     if meta and is_token_expired(meta):
         logger.info("Token expired — Automatic logoff triggered for user %s", meta.get("sub", "unknown"))
         return None

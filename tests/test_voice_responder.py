@@ -41,6 +41,27 @@ def test_voice_alert_cancellation(responder):
     assert responder.state == VoiceState.ALERT_SUPPRESSED
 
 
+def test_conflict_resolution_and_negation(responder):
+    """
+    Covers: HAZ-033, SRS-VOC-001
+    F-02: Verifies safety-first conflict resolution when transcript contains both
+    distress and cancel phrases ('do not cancel, help me!').
+    Also verifies negated cancellation is rejected.
+    """
+    # 1. Mixed distress and cancel -> Distress MUST win
+    event = responder.process_transcript("do not cancel, help me!")
+    assert event is not None
+    assert event.event_type == "DISTRESS_KEYWORD"
+    assert responder.state == VoiceState.ALERT_TRIGGERED
+
+    # 2. Negated cancellation -> Should not suppress or trigger cancel
+    responder.state = VoiceState.IDLE
+    neg_event = responder.process_transcript("do not cancel")
+    assert neg_event is None
+    assert responder.state == VoiceState.IDLE
+
+
+
 def test_acoustic_clipping_and_fuzziness(responder):
     """
     Covers: HAZ-033

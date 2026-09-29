@@ -5,12 +5,13 @@ illumination, smart lock release for first responders, robot vacuum halts,
 and ambient temperature stabilization to prevent hypothermia.
 """
 
+from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
 import logging
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Deque, Dict, List, Optional
 
 logger = logging.getLogger("smart_home_actions")
 
@@ -91,7 +92,7 @@ class SmartHomeActionEngine:
         self.rules: Dict[str, AutomationRule] = {
             r.rule_id: r for r in self.DEFAULT_RULES
         }
-        self.action_history: List[ActionRecord] = []
+        self.action_history: Deque[ActionRecord] = deque(maxlen=10000)
         self._custom_executor: Optional[Callable[[ActionRecord], bool]] = None
 
     def set_custom_executor(self, executor: Callable[[ActionRecord], bool]) -> None:
@@ -175,7 +176,8 @@ class SmartHomeActionEngine:
                     timestamp=time.time(),
                     parameters=rule.parameters,
                 )
-                self.action_history.append(rec)
+                with self._lock:
+                    self.action_history.append(rec)
                 results.append(
                     {
                         "rule_id": rule.rule_id,
@@ -208,7 +210,7 @@ class SmartHomeActionEngine:
     def get_history(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Retrieve recent action dispatch logs."""
         with self._lock:
-            history_slice = self.action_history[-limit:]
+            history_slice = list(self.action_history)[-limit:]
         return [
             {
                 "action": r.action_type.value,

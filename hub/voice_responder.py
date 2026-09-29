@@ -111,7 +111,7 @@ class VoiceResponder:
     def _match_phrase_list(
         self, query: str, targets: List[str]
     ) -> Tuple[Optional[str], float]:
-        """Fuzzy match query text against a target keyword dictionary."""
+        """Fuzzy match query text against a target keyword dictionary using word boundaries."""
         query_norm = re.sub(r"[^\w\s]", "", query.lower()).strip()
         if not query_norm:
             return None, 0.0
@@ -121,8 +121,9 @@ class VoiceResponder:
 
         for target in targets:
             target_norm = re.sub(r"[^\w\s]", "", target.lower()).strip()
-            # Exact match or substring contains
-            if target_norm == query_norm or target_norm in query_norm:
+            # Exact match or word-bounded regex match (prevents partial word false positives)
+            pattern = r"(?:\b|^)" + re.escape(target_norm) + r"(?:\b|$)"
+            if target_norm == query_norm or re.search(pattern, query_norm):
                 return target, 1.0
 
             # Token overlap or Levenshtein ratio
@@ -139,41 +140,30 @@ class VoiceResponder:
     def process_transcript(
         self, transcript: str, confidence: float = 1.0
     ) -> Optional[VoiceEvent]:
-        """Process speech-to-text transcript from ambient room microphone."""
+        """Process speech-to-text transcript from ambient room microphone.
+
+        Safety-First Design (ISO 14971):
+        Emergency distress keywords take absolute precedence over cancellation phrases.
+        Cancellation phrases are also verified against negation prefixes (e.g. 'do not cancel').
+        """
         if not transcript or not isinstance(transcript, str):
             return None
         now = time.time()
-        # 1. Check for cancellation first (patient calling out that they are fine)
-        cancel_target, cancel_score = self._match_phrase_list(
-            transcript, self.CANCEL_KEYWORDS
-        )
-        combined_cancel_conf = cancel_score * confidence
 
-        if combined_cancel_conf >= self.confidence_threshold:
-            event = VoiceEvent(
-                timestamp=now,
-                room_id=self.room_id,
-                event_type="CANCEL_KEYWORD",
-                phrase=cancel_target or transcript,
-                confidence=combined_cancel_conf,
-                metadata={"raw_transcript": transcript},
-            )
-            self.state = VoiceState.ALERT_SUPPRESSED
-            self.last_event = event
-            self.events_history.append(event)
-            logger.info(
-                f"[{self.room_id}] Voice Alert Suppressed via phrase: '{cancel_target}' ({combined_cancel_conf:.2f})"
-            )
-            if self._on_cancel_callback:
-                self._on_cancel_callback(event)
-            return event
-
-        # 2. Check for distress keywords
+        # 1. Check for distress keywords FIRST
         distress_target, distress_score = self._match_phrase_list(
             transcript, self.DISTRESS_KEYWORDS
         )
         combined_distress_conf = distress_score * confidence
 
+        # 2. Check for cancellation keywords
+        cancel_target, cancel_score = self._match_phrase_list(
+            transcript, self.CANCEL_KEYWORDS
+        )
+        combined_cancel_conf = cancel_score * confidence
+
+        # Safety-First Conflict Resolution:
+        # If distress is detected above threshold, distress ALWAYS wins over cancellation.
         if combined_distress_conf >= self.confidence_threshold:
             event = VoiceEvent(
                 timestamp=now,
@@ -191,6 +181,35 @@ class VoiceResponder:
             )
             if self._on_distress_callback:
                 self._on_distress_callback(event)
+            return event
+
+        # 3. Check for cancellation ONLY if no distress was detected
+        if combined_cancel_conf >= self.confidence_threshold:
+            query_norm = re.sub(r"[^\w\s]", "", transcript.lower()).strip()
+            cancel_norm = re.sub(r"[^\w\s]", "", (cancel_target or "").lower()).strip()
+            negation_pattern = r"\b(not|dont|do not|never|cant|cannot)\s+" + re.escape(cancel_norm)
+            if re.search(negation_pattern, query_norm):
+                logger.info(
+                    f"[{self.room_id}] Cancellation phrase '{cancel_target}' rejected due to negation in: '{transcript}'"
+                )
+                return None
+
+            event = VoiceEvent(
+                timestamp=now,
+                room_id=self.room_id,
+                event_type="CANCEL_KEYWORD",
+                phrase=cancel_target or transcript,
+                confidence=combined_cancel_conf,
+                metadata={"raw_transcript": transcript},
+            )
+            self.state = VoiceState.ALERT_SUPPRESSED
+            self.last_event = event
+            self.events_history.append(event)
+            logger.info(
+                f"[{self.room_id}] Voice Alert Suppressed via phrase: '{cancel_target}' ({combined_cancel_conf:.2f})"
+            )
+            if self._on_cancel_callback:
+                self._on_cancel_callback(event)
             return event
 
         return None

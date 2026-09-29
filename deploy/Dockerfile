@@ -26,8 +26,12 @@ COPY config/ /app/config/
 COPY src/ /app/src/
 COPY main.py /app/
 
-# Create persistent state directories
-RUN mkdir -p /app/incidents /app/datasets
+# Create persistent state directories and non-root service user
+RUN groupadd -r falldetect && useradd --no-log-init -r -g falldetect -d /app falldetect \
+    && mkdir -p /app/incidents /app/datasets /app/audits \
+    && chown -R falldetect:falldetect /app
+
+USER falldetect
 
 # CSI UDP: 5555 | mmWave UDP: 5556 | Web Telemetry HUD: 8000
 EXPOSE 5555/udp

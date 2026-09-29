@@ -39,8 +39,8 @@ def test_watchdog_heartbeat_and_stall_detection():
     assert health1["healthy"] is True
     assert health1["stall_count"] == 0
 
-    # Wait past timeout
-    time.sleep(0.15)
+    # Simulate stall by decrementing last_heartbeat timestamp past stall_timeout_sec
+    watchdog.last_heartbeat -= 0.5
     health2 = watchdog.check_health()
     assert health2["healthy"] is False
     assert health2["stall_count"] >= 1

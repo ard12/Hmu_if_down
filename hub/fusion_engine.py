@@ -2,13 +2,16 @@
 
 from collections import deque
 from enum import Enum
+import logging
 import time
-from typing import Any, Deque, List, Optional, Tuple
+from typing import Any, Deque, Dict, List, Optional, Tuple
 
 from .alert_dispatcher import AlertDispatcher
 from .csi_pipeline.multi_link_fusion import CSIFallState, MultiLinkFusionEngine
 from .csi_pipeline.pca_features import CSIDynamicFeatures
 from .mmwave_pipeline.radar_receiver import RadarFallState, RadarPosture, RadarTelemetry
+
+logger = logging.getLogger("fusion_engine")
 
 
 class OperatingMode(Enum):

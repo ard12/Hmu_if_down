@@ -10,6 +10,7 @@ import datetime
 import json
 import logging
 from pathlib import Path
+import re
 from typing import Any, Dict, List, Optional
 
 from hub.billing_coder import billing_coder
@@ -113,8 +114,13 @@ I have reviewed the objective sensor telemetry, kinematic trajectories, and pati
 **License / NPI Number:** _______________________________  
 **Signature & Date:** __________________________________  
 """
-        # Save to disk
-        out_file = self.output_dir / f"incident_{data.event_id}.md"
+        # Save to disk with path traversal sanitization (CWE-22)
+        safe_event_id = re.sub(r"[^a-zA-Z0-9_\-]", "", str(data.event_id or "unspecified"))
+        if not safe_event_id:
+            safe_event_id = "unspecified"
+        out_file = (self.output_dir / f"incident_{safe_event_id}.md").resolve()
+        if not str(out_file).startswith(str(self.output_dir.resolve())):
+            raise ValueError(f"Illegal path traversal detected in event_id: {data.event_id}")
         out_file.write_text(md, encoding="utf-8")
         logger.info(f"Generated Markdown incident report: {out_file}")
         return md
@@ -122,12 +128,14 @@ I have reviewed the objective sensor telemetry, kinematic trajectories, and pati
     def generate_fhir_diagnostic_report(self, data: IncidentReportData) -> Dict[str, Any]:
         """Generate an HL7 FHIR R4 DiagnosticReport resource JSON representation."""
         safe_ts = max(0.0, float(data.timestamp or 0.0))
-        dt_iso = datetime.datetime.fromtimestamp(safe_ts).isoformat()
+        # HL7 FHIR R4 requires explicit timezone offset for dateTime primitives
+        dt_iso = datetime.datetime.fromtimestamp(safe_ts, tz=datetime.timezone.utc).isoformat()
+        safe_event_id = re.sub(r"[^a-zA-Z0-9_\-]", "", str(data.event_id or "unspecified"))
         billing = billing_coder.generate_billing_recommendation(data.biomechanics_class)
 
         return {
             "resourceType": "DiagnosticReport",
-            "id": f"incident-report-{data.event_id}",
+            "id": f"incident-report-{safe_event_id}",
             "status": "final",
             "category": [
                 {

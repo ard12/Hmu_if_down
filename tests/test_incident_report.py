@@ -66,3 +66,19 @@ def test_fhir_diagnostic_report_generation(generator, sample_incident_data):
     assert fhir["subject"]["reference"] == "Patient/PAT_4412"
     assert "conclusion" in fhir
     assert fhir["code"]["coding"][0]["code"] == "55122-0"
+    # F-08: FHIR effectiveDateTime must contain timezone offset (e.g. +00:00 or Z)
+    assert "+00:00" in fhir["effectiveDateTime"] or "Z" in fhir["effectiveDateTime"]
+
+
+def test_path_traversal_sanitization(generator, sample_incident_data):
+    """
+    Covers: HAZ-035
+    F-04: Verifies event_id with directory traversal characters is sanitized or rejected.
+    """
+    sample_incident_data.event_id = "../../etc/malicious_payload"
+    generator.generate_markdown_report(sample_incident_data)
+    # Target file should be sanitized safely within output_dir
+    expected_file = generator.output_dir / "incident_etcmalicious_payload.md"
+    assert expected_file.exists()
+    assert expected_file.is_file()
+
