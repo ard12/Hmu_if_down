@@ -1,5 +1,6 @@
 """Second-stage ML classifier for categorizing confirmed falls into clinical fall types."""
 
+import hashlib
 from pathlib import Path
 import pickle
 import sys
@@ -200,13 +201,25 @@ class FallTypeClassifier:
         return report
 
     def save(self, file_path: Path):
-        """Save model to pickle file."""
+        """Save model to pickle file with SHA-256 integrity hash."""
         file_path.parent.mkdir(parents=True, exist_ok=True)
+        content = pickle.dumps(self.model)
         with open(file_path, "wb") as f:
-            pickle.dump(self.model, f)
+            f.write(content)
+        hash_path = file_path.with_suffix(file_path.suffix + ".sha256")
+        hash_path.write_text(hashlib.sha256(content).hexdigest(), encoding="utf-8")
 
     def load(self, file_path: Path):
-        """Load model from pickle file."""
-        with open(file_path, "rb") as f:
-            self.model = pickle.load(f)
+        """Load model from pickle file, verifying SHA-256 integrity sidecar if present."""
+        content = file_path.read_bytes()
+        hash_path = file_path.with_suffix(file_path.suffix + ".sha256")
+        if hash_path.exists():
+            expected = hash_path.read_text(encoding="utf-8").strip()
+            computed = hashlib.sha256(content).hexdigest()
+            if computed != expected:
+                raise ValueError(
+                    f"Cryptographic integrity check failed for model {file_path}: "
+                    f"expected {expected}, got {computed}"
+                )
+        self.model = pickle.loads(content)  # nosec B301
         self.is_fitted = True

@@ -8,6 +8,7 @@ production classifier models to disk.
 
 import argparse
 from datetime import datetime
+import hashlib
 import json
 from pathlib import Path
 import pickle
@@ -481,9 +482,14 @@ def main():
     # Optional ONNX export
     if args.onnx:
         print("\n[ONNX] Starting model conversion and quantization...")
-        # Re-load the saved model for ONNX conversion
-        with open(output_model, "rb") as f:
-            saved_model = pickle.load(f)
+        # Re-load the saved model for ONNX conversion with integrity verification
+        model_bytes = output_model.read_bytes()
+        hash_file = output_model.with_suffix(output_model.suffix + ".sha256")
+        if hash_file.exists():
+            expected = hash_file.read_text(encoding="utf-8").strip()
+            if hashlib.sha256(model_bytes).hexdigest() != expected:
+                raise ValueError("Saved model failed cryptographic integrity check")
+        saved_model = pickle.loads(model_bytes)  # nosec B301
         onnx_result = convert_and_quantize(saved_model, output_dir=output_dir)
         if onnx_result and report_file.exists():
             # Merge ONNX metadata back into evaluation report

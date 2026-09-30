@@ -57,6 +57,7 @@ datasets/trials/*.json
 
 # Audit database and FHIR exports (sensitive clinical data)
 audits/audit.db
+audits/*.db
 audits/fhir_export_*.json
 
 # API Secrets — NEVER commit the actual token file

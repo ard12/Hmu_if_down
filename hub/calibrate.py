@@ -158,13 +158,14 @@ def collect_live_csi(
     duration: float,
     preprocessor: CSIPreprocessor,
     expected_nodes: Tuple[int, ...] = (1, 2, 3),
+    bind_host: str = "0.0.0.0",  # nosec B104
 ) -> Tuple[Dict[int, List[CSIPacket]], float]:
     """Listen on UDP port for incoming CSI packets over the specified duration."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
     try:
-        sock.bind(("0.0.0.0", port))
+        sock.bind((bind_host, port))  # nosec B104
     except OSError as e:
         print(f"\n[ERROR] Failed to bind to UDP port {port}: {e}", file=sys.stderr)
         return {nid: [] for nid in expected_nodes}, 0.0
@@ -172,7 +173,7 @@ def collect_live_csi(
     sock.settimeout(0.5)
     collected: Dict[int, List[CSIPacket]] = {nid: [] for nid in expected_nodes}
 
-    print(f"Listening on UDP 0.0.0.0:{port} for {duration:.1f}s...")
+    print(f"Listening on UDP {bind_host}:{port} for {duration:.1f}s...")
     print("Ensure the room is vacant and motionless for accurate noise profiling.\n")
 
     start_time = time.time()

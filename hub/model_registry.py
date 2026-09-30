@@ -130,8 +130,8 @@ class ModelRegistry:
             finally:
                 conn.close()
 
-        # nosec B301 - SHA-256 cryptographic hash verified against SQLite record before unpickling
-        return pickle.loads(model_bytes)
+        # SHA-256 cryptographic hash verified against SQLite record before unpickling
+        return pickle.loads(model_bytes)  # nosec B301
 
     def list_versions(self) -> List[Dict[str, Any]]:
         """Return list of model records sorted by created_at descending."""
@@ -210,8 +210,8 @@ class ModelRegistry:
             finally:
                 conn.close()
 
-        # nosec B301 - SHA-256 cryptographic hash verified against SQLite record before unpickling
-        return pickle.loads(model_bytes)
+        # SHA-256 cryptographic hash verified against SQLite record before unpickling
+        return pickle.loads(model_bytes)  # nosec B301
 
     def get_active_version_id(self) -> Optional[str]:
         """Return version_id of currently active model."""

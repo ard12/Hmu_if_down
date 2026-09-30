@@ -6,6 +6,7 @@ Classifier to estimate the posterior probability of a human fall event P(fall).
 """
 
 from dataclasses import dataclass
+import hashlib
 from pathlib import Path
 import pickle
 import sys
@@ -220,13 +221,25 @@ class FallClassifier:
         return float(probas[1])
 
     def save(self, file_path: Path):
-        """Persist model state to file."""
+        """Persist model state to file with SHA-256 integrity hash."""
         file_path.parent.mkdir(parents=True, exist_ok=True)
+        content = pickle.dumps(self.model)
         with open(file_path, "wb") as f:
-            pickle.dump(self.model, f)
+            f.write(content)
+        hash_path = file_path.with_suffix(file_path.suffix + ".sha256")
+        hash_path.write_text(hashlib.sha256(content).hexdigest(), encoding="utf-8")
 
     def load(self, file_path: Path):
-        """Load trained model state from file."""
-        with open(file_path, "rb") as f:
-            self.model = pickle.load(f)
+        """Load trained model state from file, verifying SHA-256 integrity sidecar if present."""
+        content = file_path.read_bytes()
+        hash_path = file_path.with_suffix(file_path.suffix + ".sha256")
+        if hash_path.exists():
+            expected = hash_path.read_text(encoding="utf-8").strip()
+            computed = hashlib.sha256(content).hexdigest()
+            if computed != expected:
+                raise ValueError(
+                    f"Cryptographic integrity check failed for model {file_path}: "
+                    f"expected {expected}, got {computed}"
+                )
+        self.model = pickle.loads(content)  # nosec B301
         self.is_fitted = True

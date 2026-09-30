@@ -44,6 +44,12 @@ def parse_args():
         help="Operating mode: 'csi' (Plan 1), 'radar' (Plan 2), or 'fusion' (Dual Modality)",
     )
     parser.add_argument(
+        "--bind-host",
+        type=str,
+        default="0.0.0.0",  # nosec: B104
+        help="Network interface to bind UDP listeners and web server (default: 0.0.0.0)",
+    )
+    parser.add_argument(
         "--csi-port",
         type=int,
         default=5555,
@@ -754,7 +760,7 @@ def main():
         def _run_web(port: int):
             import uvicorn
             from hub.dashboard.app import app as web_app
-            uvicorn.run(web_app, host="0.0.0.0", port=port, log_level="warning")
+            uvicorn.run(web_app, host=args.bind_host, port=port, log_level="warning")
 
         web_thread = threading.Thread(target=_run_web, args=(args.web_port,), daemon=True)
         web_thread.start()
@@ -847,7 +853,7 @@ def main():
     if mode in (OperatingMode.CSI_ONLY, OperatingMode.FUSION):
         csi_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         csi_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        csi_sock.bind(("0.0.0.0", args.csi_port))
+        csi_sock.bind((args.bind_host, args.csi_port))  # nosec B104
         sockets.append(csi_sock)
         print(f"  [CSI]   Listening on UDP port {args.csi_port}")
 
@@ -862,7 +868,7 @@ def main():
     if mode in (OperatingMode.RADAR_ONLY, OperatingMode.FUSION):
         radar_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         radar_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        radar_sock.bind(("0.0.0.0", args.radar_port))
+        radar_sock.bind((args.bind_host, args.radar_port))  # nosec B104
         sockets.append(radar_sock)
         print(f"  [RADAR] Listening on UDP port {args.radar_port}")
 

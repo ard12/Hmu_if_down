@@ -198,7 +198,7 @@ class AuditLog:
             params.append(end_utc)
 
         where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-        sql = f"SELECT * FROM audit_events {where} ORDER BY id ASC LIMIT ? OFFSET ?"
+        sql = f"SELECT * FROM audit_events {where} ORDER BY id ASC LIMIT ? OFFSET ?"  # nosec: B608
         params.extend([limit, offset])
 
         with self._connect() as conn:

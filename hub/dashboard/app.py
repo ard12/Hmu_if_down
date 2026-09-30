@@ -15,8 +15,10 @@ from typing import Any, Dict, List, Optional, Set
 import numpy as np
 
 from fastapi import FastAPI, Request, Response, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # Setup logging
 logger = logging.getLogger("dashboard")
@@ -189,6 +191,36 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Fall Detection Telemetry HUD", docs_url="/api/docs", lifespan=lifespan)
 
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Enforces essential security headers (OWASP A05:2021) for HIPAA §164.312 web portal protection."""
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "img-src 'self' data:; "
+            "connect-src 'self' ws: wss:; "
+            "font-src 'self' https://cdn.jsdelivr.net;"
+        )
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+)
+
 # Mount static web assets
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
@@ -258,6 +290,38 @@ async def get_caregiver_page():
     path = STATIC_DIR / "caregiver.html"
     if not path.exists():
         return JSONResponse({"error": "caregiver.html not found"}, status_code=404)
+    return FileResponse(path, media_type="text/html")
+
+
+@app.get("/mesh")
+async def get_mesh_page():
+    path = STATIC_DIR / "mesh.html"
+    if not path.exists():
+        return JSONResponse({"error": "mesh.html not found"}, status_code=404)
+    return FileResponse(path, media_type="text/html")
+
+
+@app.get("/mobility")
+async def get_mobility_page():
+    path = STATIC_DIR / "mobility.html"
+    if not path.exists():
+        return JSONResponse({"error": "mobility.html not found"}, status_code=404)
+    return FileResponse(path, media_type="text/html")
+
+
+@app.get("/pose")
+async def get_pose_page():
+    path = STATIC_DIR / "pose.html"
+    if not path.exists():
+        return JSONResponse({"error": "pose.html not found"}, status_code=404)
+    return FileResponse(path, media_type="text/html")
+
+
+@app.get("/analytics")
+async def get_analytics_page():
+    path = STATIC_DIR / "analytics.html"
+    if not path.exists():
+        return JSONResponse({"error": "analytics.html not found"}, status_code=404)
     return FileResponse(path, media_type="text/html")
 
 
@@ -436,11 +500,19 @@ async def get_datasets():
 @app.get("/api/datasets/{filename}")
 async def download_dataset(filename: str):
     """Download a specific dataset file (.npz or .json)."""
-    datasets_dir = PROJECT_ROOT / "datasets"
-    file_path = datasets_dir / filename
-    if not file_path.exists() or file_path.suffix not in (".npz", ".json"):
+    datasets_dir = (PROJECT_ROOT / "datasets").resolve()
+    # Block directory traversal and normalize filename
+    if ".." in filename or "/" in filename or "\\" in filename:
+        return JSONResponse({"error": "Invalid filename"}, status_code=400)
+    safe_filename = Path(filename).name
+    file_path = (datasets_dir / safe_filename).resolve()
+    if (
+        not file_path.is_relative_to(datasets_dir)
+        or not file_path.is_file()
+        or file_path.suffix not in (".npz", ".json")
+    ):
         return JSONResponse({"error": "Dataset file not found"}, status_code=404)
-    return FileResponse(file_path, filename=filename, media_type="application/octet-stream")
+    return FileResponse(file_path, filename=safe_filename, media_type="application/octet-stream")
 
 
 @app.get("/api/rooms")
@@ -513,14 +585,19 @@ async def download_firmware(filename: str):
     Files must be pre-built and placed in deploy/firmware/ on the hub host.
     The ESP32 calls this endpoint during the OTA boot check.
     """
-    firmware_dir = PROJECT_ROOT / "deploy" / "firmware"
-    file_path = firmware_dir / filename
+    firmware_dir = (PROJECT_ROOT / "deploy" / "firmware").resolve()
     # Only serve .bin and .elf files; block directory traversal
     if ".." in filename or "/" in filename or "\\" in filename:
         return JSONResponse({"error": "Invalid filename"}, status_code=400)
-    if not file_path.exists() or file_path.suffix not in (".bin", ".elf"):
+    safe_filename = Path(filename).name
+    file_path = (firmware_dir / safe_filename).resolve()
+    if (
+        not file_path.is_relative_to(firmware_dir)
+        or not file_path.is_file()
+        or file_path.suffix not in (".bin", ".elf")
+    ):
         return JSONResponse({"error": "Firmware file not found"}, status_code=404)
-    return FileResponse(file_path, filename=filename, media_type="application/octet-stream")
+    return FileResponse(file_path, filename=safe_filename, media_type="application/octet-stream")
 
 
 # ---------------------------------------------------------------------------

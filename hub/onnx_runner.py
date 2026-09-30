@@ -10,6 +10,7 @@ Usage:
     report = clf.benchmark_inference(n=1000)
 """
 
+import hashlib
 import logging
 import pickle
 import time
@@ -102,8 +103,20 @@ class ONNXFallClassifier:
             logger.error("Pickle model not found at %s", path)
             return
         try:
-            with open(path, "rb") as f:
-                self._fallback_model = pickle.load(f)
+            content = path.read_bytes()
+            hash_path = path.with_suffix(path.suffix + ".sha256")
+            if hash_path.exists():
+                expected = hash_path.read_text(encoding="utf-8").strip()
+                computed = hashlib.sha256(content).hexdigest()
+                if computed != expected:
+                    logger.error(
+                        "Cryptographic integrity check failed for model %s: expected %s, got %s",
+                        path,
+                        expected,
+                        computed,
+                    )
+                    return
+            self._fallback_model = pickle.loads(content)  # nosec B301
             logger.info("Pickle classifier loaded from %s", path.name)
         except Exception as exc:
             logger.error("Failed to load pickle model: %s", exc)

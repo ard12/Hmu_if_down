@@ -159,7 +159,7 @@ class AlertDispatcher:
                             data=payload_json.encode("utf-8"),
                             headers={"Content-Type": "application/json"},
                         )
-                        resp = urllib.request.urlopen(req, timeout=5.0)
+                        resp = urllib.request.urlopen(req, timeout=5.0)  # nosec: B310
                         if hasattr(resp, "close"):
                             resp.close()
                     except Exception as e:

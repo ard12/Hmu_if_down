@@ -177,6 +177,7 @@ def record_live_session(
     radar_port: int = 5556,
     notes: str = "",
     output_dir: Optional[Path] = None,
+    bind_host: str = "0.0.0.0",  # nosec: B104
 ) -> Tuple[Path, Path]:
     """Capture live UDP streams over the given duration."""
     if output_dir is None:
@@ -189,12 +190,12 @@ def record_live_session(
     # Open sockets
     csi_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     csi_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    csi_sock.bind(("0.0.0.0", csi_port))
+    csi_sock.bind((bind_host, csi_port))  # nosec B104
     csi_sock.settimeout(0.05)
 
     radar_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     radar_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    radar_sock.bind(("0.0.0.0", radar_port))
+    radar_sock.bind((bind_host, radar_port))  # nosec B104
     radar_sock.settimeout(0.05)
 
     print(f"\n=======================================================")

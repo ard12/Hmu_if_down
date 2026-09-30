@@ -19,7 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, WebSoc
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from hub.auth import _token_store, is_token_expired
+from hub.auth import _token_lock, _token_store, is_token_expired
 
 logger = logging.getLogger(__name__)
 
@@ -111,13 +111,14 @@ class CaregiverManager:
 
         # Issue token valid for 1 hour
         token = f"cg_{secrets.token_hex(20)}"
-        _token_store[token] = {
-            "sub": caregiver_id,
-            "role": "caregiver",
-            "name": profile.name,
-            "exp": time.time() + 3600,
-            "description": f"Caregiver token for {caregiver_id}",
-        }
+        with _token_lock:
+            _token_store[token] = {
+                "sub": caregiver_id,
+                "role": "caregiver",
+                "name": profile.name,
+                "exp": time.time() + 3600,
+                "description": f"Caregiver token for {caregiver_id}",
+            }
         return token
 
     def get(self, caregiver_id: str) -> Optional[CaregiverProfile]:
@@ -144,7 +145,8 @@ async def require_caregiver_auth(
             headers={"WWW-Authenticate": "Bearer"},
         )
     token = credentials.credentials
-    meta = _token_store.get(token)
+    with _token_lock:
+        meta = _token_store.get(token)
     if not meta or is_token_expired(meta):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

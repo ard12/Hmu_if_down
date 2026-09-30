@@ -74,11 +74,17 @@ def test_classifier_save_and_load():
         model_file = Path(tmp_dir) / "test_model.pkl"
         clf.save(model_file)
         assert model_file.exists()
+        assert model_file.with_suffix(".pkl.sha256").exists()
 
         loaded_clf = FallClassifier(model_path=model_file)
         p_loaded = loaded_clf.predict_proba(test_feat)
 
         np.testing.assert_almost_equal(p_orig, p_loaded, decimal=4)
+
+        # Tampering with model file must cause load() to fail cryptographic integrity
+        model_file.write_bytes(model_file.read_bytes() + b"\x00corrupt")
+        with pytest.raises(ValueError, match="Cryptographic integrity check failed"):
+            loaded_clf.load(model_file)
 
 
 def test_hybrid_fusion_with_classifier():

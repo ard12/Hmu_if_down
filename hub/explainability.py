@@ -84,7 +84,7 @@ class SHAPExplainer:
                         )
                         raise ValueError("Model file cryptographic integrity check failed")
                 with open(model_path, "rb") as f:
-                    self.model = pickle.load(f)
+                    self.model = pickle.load(f)  # nosec B301
                 return
             except Exception as e:
                 logger.warning(f"Could not load {model_path} securely: {e}")

@@ -300,3 +300,38 @@ tr:hover td {
 .badge-tag-csi { background: rgba(56, 189, 248, 0.15); color: var(--color-blue); }
 .badge-tag-radar { background: rgba(168, 85, 247, 0.15); color: var(--color-purple); }
 .badge-tag-fusion { background: rgba(239, 68, 68, 0.15); color: var(--color-red); }
+
+/* Portal Navigation Toolbar */
+.portal-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: var(--bg-card);
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+}
+
+.nav-btn {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-btn:hover {
+  background: var(--bg-card-hover);
+  color: var(--color-blue);
+}
+
+.nav-btn.active {
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--color-blue);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}

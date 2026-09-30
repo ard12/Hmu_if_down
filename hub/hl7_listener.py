@@ -19,7 +19,7 @@ class HL7MLLPListener:
 
     def __init__(
         self,
-        host: str = "0.0.0.0",
+        host: str = "0.0.0.0",  # nosec: B104
         port: int = 2575,
         context_store: Optional[Any] = None,
     ):

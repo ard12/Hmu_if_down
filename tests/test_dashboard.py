@@ -130,3 +130,60 @@ def test_dashboard_phase11_endpoints(client):
     assert res_retrain_trigger.status_code == 200
     assert "status" in res_retrain_trigger.json()
 
+
+def test_dashboard_security_headers(client):
+    """Verify HTTP security headers are injected into HTTP responses (OWASP A05:2021)."""
+    response = client.get("/api/status")
+    assert response.status_code == 200
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Frame-Options"] == "DENY"
+    assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+    assert "default-src 'self'" in response.headers["Content-Security-Policy"]
+
+
+def test_dataset_path_traversal_protection(client):
+    """Verify dataset endpoint strictly blocks path traversal attacks (CWE-22)."""
+    # 1. Directory traversal sequence returns 400
+    res_traversal = client.get("/api/datasets/..%2F..%2Fetc%2Fpasswd.json")
+    assert res_traversal.status_code in (400, 404)
+
+    # 2. Windows-style traversal returns 400
+    res_win = client.get("/api/datasets/..%5C..%5Csecret.json")
+    assert res_win.status_code in (400, 404)
+
+    # 3. Non-existent legitimate file safely returns 404
+    res_missing = client.get("/api/datasets/nonexistent_dataset.json")
+    assert res_missing.status_code == 404
+
+
+def test_firmware_path_traversal_protection(client):
+    """Verify firmware download endpoint strictly blocks path traversal (CWE-22)."""
+    res = client.get("/firmware/..%2F..%2Fsecret.bin")
+    assert res.status_code in (400, 404)
+
+
+@pytest.mark.parametrize(
+    "route,expected_token",
+    [
+        ("/", "Multi-Modal Fall Detection HUD"),
+        ("/caregiver", "Caregiver Alert Triage"),
+        ("/family", "Family Care Portal"),
+        ("/fleet", "Fleet Command Orchestrator"),
+        ("/automations", "Environmental Safety & Smart Automations"),
+        ("/digital-twin", "3D Digital Twin HUD"),
+        ("/mobility", "Mobility & Fall Risk HUD"),
+        ("/pose", "3D Video-Free Pose & Biomechanics HUD"),
+        ("/mesh", "ESP-MESH & Room Handoff"),
+        ("/analytics", "Population Health Analytics"),
+        ("/explain", "Explainable AI (XAI)"),
+        ("/acceleration", "Edge AI Acceleration"),
+    ],
+)
+def test_all_ui_portal_pages_render(client, route, expected_token):
+    """Verify that all 12 UI dashboards and clinical portals render successfully (UI/UX QA)."""
+    res = client.get(route)
+    assert res.status_code == 200, f"Route {route} failed to load: {res.status_code}"
+    assert expected_token in res.text, f"Route {route} missing expected content token: {expected_token}"
+
+
+

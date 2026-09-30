@@ -166,12 +166,22 @@ class TensorRTRunner:
         """Load default scikit-learn pickle if available."""
         if self._fallback_pickle_path and self._fallback_pickle_path.exists():
             try:
-                with open(self._fallback_pickle_path, "rb") as f:
-                    self._fallback_model = pickle.load(f)
+                content = self._fallback_pickle_path.read_bytes()
+                hash_path = self._fallback_pickle_path.with_suffix(self._fallback_pickle_path.suffix + ".sha256")
+                if hash_path.exists():
+                    expected = hash_path.read_text(encoding="utf-8").strip()
+                    computed = hashlib.sha256(content).hexdigest()
+                    if computed != expected:
+                        logger.error(
+                            "Cryptographic integrity check failed for fallback model %s: expected %s, got %s",
+                            self._fallback_pickle_path,
+                            expected,
+                            computed,
+                        )
+                        return
+                self._fallback_model = pickle.loads(content)  # nosec B301
                 self._provider = InferenceProvider.SKLEARN_CPU
-                self._model_hash = hashlib.sha256(
-                    self._fallback_pickle_path.read_bytes()
-                ).hexdigest()[:16]
+                self._model_hash = hashlib.sha256(content).hexdigest()[:16]
                 logger.info("Loaded scikit-learn fallback model from %s", self._fallback_pickle_path)
             except Exception as exc:
                 logger.warning("Failed to load fallback pickle: %s", exc)
