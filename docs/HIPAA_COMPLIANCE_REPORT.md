@@ -4,7 +4,7 @@
 
 ## 1. Executive Summary
 
-- **Audit Timestamp**: `2026-09-23T22:42:44.360538Z`
+- **Audit Timestamp**: `2026-09-30T04:33:02.987494Z`
 - **Total Safeguard Specifications**: `9`
 - **Passed**: `9`
 - **Deficiencies / Gaps**: `0`
@@ -41,7 +41,7 @@
 - **Evaluation Status**: `PASS`
 - **Technical Implementation**: Provides break-glass emergency role elevation with mandatory audit logging and distinct emergency security tokens.
 - **Verified Source Files**: `hub/auth.py`
-- **Verified Cryptographic/Security Symbols**: `break_glass`, `emergency`
+- **Verified Cryptographic/Security Symbols**: `BREAK_GLASS`, `break_glass`, `emergency`
 
 ### §164.312(a)(2)(ii) — Access Control: Automatic Logoff
 - **Specification Requirement**: Addressable
