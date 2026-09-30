@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Edge AI Acceleration & Latency HUD</title>
+  <link rel="stylesheet" href="/static/style.css">
   <style>
     :root {
       --bg: #0f172a;
@@ -52,16 +53,24 @@
   </style>
 </head>
 <body>
-  <header>
+  <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
     <h1>Edge AI Acceleration & Latency HUD (Phase 19)</h1>
-    <nav class="nav-links">
-      <a href="/">Overview</a>
-      <a href="/static/mobility.html">Mobility</a>
-      <a href="/static/pose.html">3D Pose</a>
-      <a href="/static/federated.html">Federated</a>
-      <a href="/acceleration">Acceleration</a>
-    </nav>
   </header>
+
+  <nav class="portal-nav" aria-label="Portal Navigation" style="margin-bottom: 20px;">
+    <a href="/" class="nav-btn">📡 Live HUD</a>
+    <a href="/caregiver" class="nav-btn">🩺 Caregiver Triage</a>
+    <a href="/family" class="nav-btn">🏡 Family Care</a>
+    <a href="/fleet" class="nav-btn">🌐 Fleet Command</a>
+    <a href="/automations" class="nav-btn">⚡ Automations</a>
+    <a href="/digital-twin" class="nav-btn">🧊 3D Twin</a>
+    <a href="/mobility" class="nav-btn">🚶 Mobility & FRAX</a>
+    <a href="/pose" class="nav-btn">🦴 3D Pose</a>
+    <a href="/mesh" class="nav-btn">🕸️ Mesh Topology</a>
+    <a href="/analytics" class="nav-btn">📊 Analytics</a>
+    <a href="/explain" class="nav-btn">🧠 Explainability</a>
+    <a href="/acceleration" class="nav-btn active">⚡ Acceleration</a>
+  </nav>
 
   <div class="grid">
     <!-- Active Inference Provider -->

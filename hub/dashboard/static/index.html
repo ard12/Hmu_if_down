@@ -19,7 +19,7 @@
         </div>
       </div>
       <div class="header-controls">
-        <button id="muteBtn">🔊 Mute Audio</button>
+        <button id="muteBtn" aria-label="Mute or Unmute Audio Alarm" aria-pressed="false">🔊 Mute Audio</button>
       </div>
     </header>
 
@@ -36,6 +36,7 @@
       <a href="/mesh" class="nav-btn">🕸️ Mesh Topology</a>
       <a href="/analytics" class="nav-btn">📊 Analytics</a>
       <a href="/explain" class="nav-btn">🧠 Explainability</a>
+      <a href="/acceleration" class="nav-btn">⚡ Acceleration</a>
     </nav>
 
     <!-- Overview Stat Cards -->
@@ -120,10 +121,10 @@
         <table>
           <thead>
             <tr>
-              <th style="width: 180px">Timestamp</th>
-              <th style="width: 120px">Modality</th>
-              <th style="width: 180px">Event</th>
-              <th>Details</th>
+              <th scope="col" style="width: 180px">Timestamp</th>
+              <th scope="col" style="width: 120px">Modality</th>
+              <th scope="col" style="width: 180px">Event</th>
+              <th scope="col">Details</th>
             </tr>
           </thead>
           <tbody id="incidentTableBody">

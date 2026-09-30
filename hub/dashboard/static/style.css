@@ -115,6 +115,17 @@ header {
   box-shadow: 0 0 12px var(--color-red);
 }
 
+.badge-offline {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  animation: pulse-amber 2s infinite;
+}
+.badge-offline::before {
+  background: #94a3b8;
+  box-shadow: 0 0 6px #94a3b8;
+}
+
 @keyframes pulse-red {
   0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
   70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
@@ -310,6 +321,7 @@ tr:hover td {
   padding: 10px 16px;
   border-radius: 10px;
   border: 1px solid var(--border-color);
+  margin-bottom: 20px;
 }
 
 .nav-btn {
@@ -335,3 +347,11 @@ tr:hover td {
   color: var(--color-blue);
   border: 1px solid rgba(56, 189, 248, 0.3);
 }
+
+button:focus-visible,
+.nav-btn:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+

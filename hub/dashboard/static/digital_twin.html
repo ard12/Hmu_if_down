@@ -24,8 +24,22 @@
         .badge-fallen { background: #991b1b; color: #f87171; }
     </style>
 </head>
-<body>
-    <div class="twin-container">
+<body style="display: flex; flex-direction: column; height: 100vh; overflow: hidden; padding: 12px; box-sizing: border-box;">
+    <nav class="portal-nav" aria-label="Portal Navigation" style="margin-bottom: 12px; flex-shrink: 0;">
+        <a href="/" class="nav-btn">📡 Live HUD</a>
+        <a href="/caregiver" class="nav-btn">🩺 Caregiver Triage</a>
+        <a href="/family" class="nav-btn">🏡 Family Care</a>
+        <a href="/fleet" class="nav-btn">🌐 Fleet Command</a>
+        <a href="/automations" class="nav-btn">⚡ Automations</a>
+        <a href="/digital-twin" class="nav-btn active">🧊 3D Twin</a>
+        <a href="/mobility" class="nav-btn">🚶 Mobility & FRAX</a>
+        <a href="/pose" class="nav-btn">🦴 3D Pose</a>
+        <a href="/mesh" class="nav-btn">🕸️ Mesh Topology</a>
+        <a href="/analytics" class="nav-btn">📊 Analytics</a>
+        <a href="/explain" class="nav-btn">🧠 Explainability</a>
+        <a href="/acceleration" class="nav-btn">⚡ Acceleration</a>
+    </nav>
+    <div class="twin-container" style="flex: 1; height: auto; min-height: 0; width: 100%;">
         <div id="canvas3d"></div>
         <div class="sidebar">
             <h2>3D Digital Twin HUD</h2>
@@ -154,6 +168,13 @@
                 console.error("Twin update error:", err);
             }
         }
+
+        window.addEventListener('resize', () => {
+            if (!container || !camera || !renderer) return;
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
 
         setInterval(updateTwinState, 1000);
         updateTwinState();

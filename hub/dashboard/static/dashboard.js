@@ -185,6 +185,14 @@ function updateStateBadge(state) {
   }
 }
 
+// Visual Disconnection & Reconnection Indicator (IEC 60601-1-8 / FDA SaMD)
+function setOfflineBadge() {
+  const badge = document.getElementById("systemStateBadge");
+  if (!badge) return;
+  badge.className = "status-badge badge-offline";
+  badge.textContent = "OFFLINE (RECONNECTING...)";
+}
+
 // Add incident row to table
 function addIncidentRow(inc) {
   const tbody = document.getElementById("incidentTableBody");
@@ -222,6 +230,14 @@ function connectWebSocket() {
 
   ws.onopen = () => {
     console.log("[HUD] Connected to Telemetry Stream");
+    fetch("/api/status")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.state) {
+          updateStateBadge(data.state);
+        }
+      })
+      .catch(() => updateStateBadge("Normal"));
   };
 
   ws.onmessage = (event) => {
@@ -268,12 +284,16 @@ function connectWebSocket() {
 
   ws.onclose = () => {
     console.warn("[HUD] WebSocket disconnected, retrying in 2s...");
+    setOfflineBadge();
     setTimeout(connectWebSocket, 2000);
   };
 
   ws.onerror = (err) => {
     console.error("[HUD] WebSocket error:", err);
-    ws.close();
+    setOfflineBadge();
+    try {
+      ws.close();
+    } catch (ignore) {}
   };
 }
 

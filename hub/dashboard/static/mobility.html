@@ -118,14 +118,24 @@
     </style>
 </head>
 <body>
-    <header class="top-nav">
-        <h1>Proactive Mobility & Fall Risk HUD</h1>
-        <div>
-            <a href="/" style="color: #38bdf8; text-decoration: none; font-size: 0.9rem; margin-right: 16px;">Live HUD</a>
-            <a href="/static/mesh.html" style="color: #38bdf8; text-decoration: none; font-size: 0.9rem; margin-right: 16px;">Mesh HUD</a>
-            <a href="/static/analytics.html" style="color: #38bdf8; text-decoration: none; font-size: 0.9rem;">Analytics</a>
-        </div>
+    <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h1 style="color: #38bdf8; margin: 0; font-size: 1.5rem;">Proactive Mobility & Fall Risk HUD</h1>
     </header>
+
+    <nav class="portal-nav" aria-label="Portal Navigation" style="margin-bottom: 20px;">
+        <a href="/" class="nav-btn">📡 Live HUD</a>
+        <a href="/caregiver" class="nav-btn">🩺 Caregiver Triage</a>
+        <a href="/family" class="nav-btn">🏡 Family Care</a>
+        <a href="/fleet" class="nav-btn">🌐 Fleet Command</a>
+        <a href="/automations" class="nav-btn">⚡ Automations</a>
+        <a href="/digital-twin" class="nav-btn">🧊 3D Twin</a>
+        <a href="/mobility" class="nav-btn active">🚶 Mobility & FRAX</a>
+        <a href="/pose" class="nav-btn">🦴 3D Pose</a>
+        <a href="/mesh" class="nav-btn">🕸️ Mesh Topology</a>
+        <a href="/analytics" class="nav-btn">📊 Analytics</a>
+        <a href="/explain" class="nav-btn">🧠 Explainability</a>
+        <a href="/acceleration" class="nav-btn">⚡ Acceleration</a>
+    </nav>
 
     <div class="kpi-grid">
         <div class="kpi-card">
