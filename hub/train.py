@@ -343,14 +343,22 @@ def train_and_export(
 
     # Persist model
     output_model_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_model_path, "wb") as f:
-        pickle.dump(final_model, f)
+    if hasattr(final_model, "_feature_subsample_rng"):
+        final_model._feature_subsample_rng = None
+    model_data = pickle.dumps(final_model, protocol=4)
+    output_model_path.write_bytes(model_data)
+    hash_path = output_model_path.with_suffix(output_model_path.suffix + ".sha256")
+    hash_path.write_text(hashlib.sha256(model_data).hexdigest(), encoding="utf-8")
     print(f"[OK] Trained production model exported to: {output_model_path}")
 
     # Persist calibrated model
     calibrated_path = output_model_path.with_name(output_model_path.stem + "_calibrated.pkl")
-    with open(calibrated_path, "wb") as f:
-        pickle.dump(calibrated_model, f)
+    if hasattr(calibrated_model, "_feature_subsample_rng"):
+        calibrated_model._feature_subsample_rng = None
+    cal_data = pickle.dumps(calibrated_model, protocol=4)
+    calibrated_path.write_bytes(cal_data)
+    cal_hash_path = calibrated_path.with_suffix(calibrated_path.suffix + ".sha256")
+    cal_hash_path.write_text(hashlib.sha256(cal_data).hexdigest(), encoding="utf-8")
     print(f"[OK] Calibrated model exported to: {calibrated_path}")
 
     # Persist report

@@ -1,8 +1,8 @@
 # Clinical Performance Validation Report (FDA SaMD / IEC 62304)
 
 **Document ID**: CPR-SAMD-V3  
-**Software Version**: v3.3.0 (Git commit: `f7b00e4`)  
-**Report Generated**: 2026-09-30 04:32:45 UTC  
+**Software Version**: v3.3.0 (Git commit: `feee09d`)  
+**Report Generated**: 2026-10-03 10:49:08 UTC  
 **Compliance Standards**: FDA Class II SaMD, IEC 62304 Class B/C, ISO 14971:2019  
 
 ---
@@ -34,7 +34,7 @@ The model achieves an overall **Sensitivity of 99.20%** and **Specificity of 98.
 
 ## 3. Real-World Audit Log & Telemetry Statistics
 
-- **Total Audit Log Events Recorded**: 15
+- **Total Audit Log Events Recorded**: 21
 - **Confirmed Fall Events**: 0
 - **Caregiver-Cancelled Events**: 0
 - **Empirical Alert Cancellation Rate**: 0.00%
