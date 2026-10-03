@@ -1,7 +1,8 @@
 # Multi-Modal Fall Detection: System Audit, Technical Findings & Living Engineering Log
 
 > **Document Classification**: Technical Architecture & Living Audit  
-> **Repository**: [`https://github.com/ard12/Hmu_if_down`](https://github.com/ard12/Hmu_if_down.git)  
+> **Internal Production Repository**: [`https://github.com/ard12/Fall_Detection`](https://github.com/ard12/Fall_Detection.git)  
+> **Public-Facing Repository**: [`https://github.com/ard12/Hmu_if_down`](https://github.com/ard12/Hmu_if_down.git)  
 > **Status**: Active Living Document (Updated across engineering milestones)  
 > **Current Baseline**: Git commit `cd5951c` (Phase 4 completed)  
 > **Last Updated**: 2026-09-14  
