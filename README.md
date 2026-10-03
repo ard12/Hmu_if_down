@@ -2,6 +2,7 @@
 
 <div align="center">
 
+[![GitHub Release](https://img.shields.io/github/v/release/ard12/Hmu_if_down?color=brightgreen&label=release)](https://github.com/ard12/Hmu_if_down/releases)
 [![CI](https://github.com/ard12/Hmu_if_down/actions/workflows/ci.yml/badge.svg)](https://github.com/ard12/Hmu_if_down/actions)
 [![Python 3.10 | 3.11](https://img.shields.io/badge/python-3.10%20%7C%203.11-blue.svg)](https://www.python.org/)
 [![Tests](https://img.shields.io/badge/tests-570%20passed%20%7C%200%20failed-brightgreen.svg)](tests/)
