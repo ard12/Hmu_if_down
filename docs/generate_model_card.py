@@ -83,7 +83,7 @@ def generate_model_card(
 **Date**: {now_iso}  
 **Model Type**: Calibrated Gradient-Boosted Decision Trees (`HistGradientBoostingClassifier` with Platt Scaling)  
 **Regulatory Class**: FDA Software as a Medical Device (SaMD) Class II / IEC 62304 Class B  
-**Repository**: [github.com/ard12/Fall_Detection](https://github.com/ard12/Fall_Detection)  
+**Repository**: [github.com/ard12/Hmu_if_down](https://github.com/ard12/Hmu_if_down)  
 
 ---
 

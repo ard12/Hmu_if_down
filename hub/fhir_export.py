@@ -96,7 +96,7 @@ def _make_observation(event: Dict[str, Any]) -> Dict[str, Any]:
     # Audit id as identifier extension
     obs["extension"] = [
         {
-            "url": "https://github.com/ard12/Fall_Detection/audit-log-id",
+            "url": "https://github.com/ard12/Hmu_if_down/audit-log-id",
             "valueInteger": event.get("id"),
         }
     ]

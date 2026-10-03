@@ -67,10 +67,17 @@ config/api_tokens.yaml
 deploy/firmware/*.bin
 deploy/firmware/*.elf
 
-# Pytest / Coverage
+# Pytest / Coverage / Testing caches
 .pytest_cache/
 .coverage
 htmlcov/
+.hypothesis/
+
+# Scratch & Temporary Testing Files
+scratch/
+*.db-journal
+*.db-wal
+*.db-shm
 
 # Environments & IDEs
 .env
@@ -83,3 +90,4 @@ htmlcov/
 .DS_Store
 Thumbs.db
 desktop.ini
+

@@ -14,6 +14,7 @@ keywords:
   - esp32
   - mmwave
   - csi
-home: https://github.com/ard12/Fall_Detection
+home: https://github.com/ard12/Hmu_if_down
 sources:
-  - https://github.com/ard12/Fall_Detection
+  - https://github.com/ard12/Hmu_if_down
+

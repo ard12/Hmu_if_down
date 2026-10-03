@@ -164,7 +164,7 @@ def load_requirements(yaml_path: Path) -> Dict[str, Dict[str, Any]]:
     return data.get("requirements", {})
 
 
-def scan_source_annotations(source_dir: Path) -> Dict[str, List[str]]:
+def scan_source_annotations(source_dir: Path, project_root: Optional[Path] = None) -> Dict[str, List[str]]:
     """Scan source code for @req SRS-xxx tags."""
     req_map: Dict[str, List[str]] = {}
     pattern = re.compile(r"@req\s+(SRS-[\w\-]+)")
@@ -176,17 +176,24 @@ def scan_source_annotations(source_dir: Path) -> Dict[str, List[str]]:
         for path in source_dir.rglob(ext):
             try:
                 content = path.read_text(encoding="utf-8", errors="ignore")
+                if project_root:
+                    try:
+                        display_path = path.relative_to(project_root).as_posix()
+                    except ValueError:
+                        display_path = path.as_posix()
+                else:
+                    display_path = path.as_posix()
                 for line_no, line in enumerate(content.splitlines(), start=1):
                     for match in pattern.finditer(line):
                         srs_id = match.group(1)
-                        ref = f"{path.as_posix()}:{line_no}"
+                        ref = f"{display_path}:{line_no}"
                         req_map.setdefault(srs_id, []).append(ref)
             except Exception:
                 pass
     return req_map
 
 
-def scan_test_annotations(test_dir: Path) -> Dict[str, List[str]]:
+def scan_test_annotations(test_dir: Path, project_root: Optional[Path] = None) -> Dict[str, List[str]]:
     """Scan tests for @covers SRS-xxx tags."""
     test_map: Dict[str, List[str]] = {}
     pattern = re.compile(r"@covers\s+(SRS-[\w\-]+)")
@@ -197,10 +204,17 @@ def scan_test_annotations(test_dir: Path) -> Dict[str, List[str]]:
     for path in test_dir.rglob("*.py"):
         try:
             content = path.read_text(encoding="utf-8", errors="ignore")
+            if project_root:
+                try:
+                    display_path = path.relative_to(project_root).as_posix()
+                except ValueError:
+                    display_path = path.as_posix()
+            else:
+                display_path = path.as_posix()
             for line_no, line in enumerate(content.splitlines(), start=1):
                 for match in pattern.finditer(line):
                     srs_id = match.group(1)
-                    ref = f"{path.as_posix()}:{line_no}"
+                    ref = f"{display_path}:{line_no}"
                     test_map.setdefault(srs_id, []).append(ref)
         except Exception:
             pass
@@ -303,8 +317,8 @@ def main():
     out_path = project_root / args.output if not os.path.isabs(args.output) else Path(args.output)
 
     reqs = load_requirements(req_path)
-    scanned_src = scan_source_annotations(src_dir)
-    scanned_tst = scan_test_annotations(tst_dir)
+    scanned_src = scan_source_annotations(src_dir, project_root)
+    scanned_tst = scan_test_annotations(tst_dir, project_root)
 
     src_map = merge_mappings(scanned_src, BASELINE_IMPL_MAP)
     tst_map = merge_mappings(scanned_tst, BASELINE_TEST_MAP)

@@ -1,7 +1,7 @@
 # Multi-Modal Fall Detection: System Audit, Technical Findings & Living Engineering Log
 
 > **Document Classification**: Technical Architecture & Living Audit  
-> **Repository**: [`https://github.com/ard12/Fall_Detection`](https://github.com/ard12/Fall_Detection.git)  
+> **Repository**: [`https://github.com/ard12/Hmu_if_down`](https://github.com/ard12/Hmu_if_down.git)  
 > **Status**: Active Living Document (Updated across engineering milestones)  
 > **Current Baseline**: Git commit `cd5951c` (Phase 4 completed)  
 > **Last Updated**: 2026-09-14  
@@ -76,12 +76,12 @@ This document serves as the authoritative, living engineering audit for the **Mu
 
 ## 3. Hardware & Firmware Architecture Audit
 
-### 3.1 Node 0 (Transmitter AP) — [`firmware/wifi_csi/transmitter_ap/main/main.c`](file:///d:/Fall_detection/firmware/wifi_csi/transmitter_ap/main/main.c)
+### 3.1 Node 0 (Transmitter AP) — [`firmware/wifi_csi/transmitter_ap/main/main.c`](firmware/wifi_csi/transmitter_ap/main/main.c)
 * **Periodic Injection**: Broadcasts 16-byte ESP-NOW ping frames at a deterministic $100\,\text{Hz}$ ($10\,\text{ms}$ period).
 * **Timer Safety**: Operates via `esp_timer_start_periodic()`. Callbacks run in the dedicated FreeRTOS `esp_timer_task` context, making `esp_now_send()` thread-safe and non-blocking.
 * **Sequence Counter**: A `uint32_t` counter wraps every $2^{32} / 100\,\text{s} \approx 497\,\text{days}$ of continuous operation.
 
-### 3.2 Nodes 1–3 (Trackers) — [`firmware/wifi_csi/tracker_node/main/main.c`](file:///d:/Fall_detection/firmware/wifi_csi/tracker_node/main/main.c)
+### 3.2 Nodes 1–3 (Trackers) — [`firmware/wifi_csi/tracker_node/main/main.c`](firmware/wifi_csi/tracker_node/main/main.c)
 * **FreeRTOS Queue Decoupling**:
   * Raw CSI callback (`wifi_csi_rx_callback`) pushes packets to `s_csi_queue` (`csi_queue_item_t`, depth: 16).
   * Network I/O runs in a dedicated `udp_tx_task`.
@@ -89,7 +89,7 @@ This document serves as the authoritative, living engineering audit for the **Mu
 * **Zero Heap Allocation**: Packet queue items are stack-allocated and copied directly into queue storage.
 * **Heartbeat & Diagnostics**: Periodic background task transmits heartbeat telemetry JSON (`{"heartbeat": id, "sent": n, "drops": d}`) every 5 seconds.
 
-### 3.3 Plan 2: 60 GHz mmWave Radar Gateway — [`firmware/mmwave_radar/`](file:///d:/Fall_detection/firmware/mmwave_radar/)
+### 3.3 Plan 2: 60 GHz mmWave Radar Gateway — [`firmware/mmwave_radar/`](firmware/mmwave_radar/)
 * **UART Frame State Machine**:
   * Byte-by-byte parser synchronization on header `0x53 0x59`.
   * Max payload limit guard (`s_data_len > MAX_PAYLOAD_LEN`) prevents buffer overflows.
@@ -154,7 +154,7 @@ This document serves as the authoritative, living engineering audit for the **Mu
 
 ## 5. Probabilistic Machine Learning Classifier
 
-### 5.1 9D Feature Vector Definition ([`hub/csi_pipeline/classifier.py`](file:///d:/Fall_detection/hub/csi_pipeline/classifier.py))
+### 5.1 9D Feature Vector Definition ([`hub/csi_pipeline/classifier.py`](hub/csi_pipeline/classifier.py))
 1. $E_{0\text{--}5\,\text{Hz}}$: Static posture, breathing, slow drift.
 2. $E_{5\text{--}15\,\text{Hz}}$: Normal locomotion, walking, arm swing.
 3. $E_{15\text{--}25\,\text{Hz}}$: Moderate kinetic motion, rapid sitting.
@@ -170,7 +170,7 @@ This document serves as the authoritative, living engineering audit for the **Mu
 * **Discrimination**:
   * Normal Activities of Daily Living (ADLs): $P(\text{fall}) < 0.30$.
   * Fall Kinetic Events: $P(\text{fall}) > 0.80$.
-* **Hybrid Integration**: In [`hub/fusion_engine.py`](file:///d:/Fall_detection/hub/fusion_engine.py), an ML score $P(\text{fall}) \ge 0.85$ fast-tracks confirmation when combined with suspected states or radar floor posture.
+* **Hybrid Integration**: In [`hub/fusion_engine.py`](hub/fusion_engine.py), an ML score $P(\text{fall}) \ge 0.85$ fast-tracks confirmation when combined with suspected states or radar floor posture.
 
 ---
 
@@ -239,19 +239,19 @@ This document serves as the authoritative, living engineering audit for the **Mu
 
 ## 8. Telemetry HUD, Smart Home & Edge Deployment
 
-### 8.1 Real-Time Web HUD ([`hub/dashboard/`](file:///d:/Fall_detection/hub/dashboard/))
+### 8.1 Real-Time Web HUD ([`hub/dashboard/`](hub/dashboard/))
 * **Zero-npm Vanilla Architecture**: Plain HTML5 Canvas + vanilla JS streams over WebSockets. No Node.js build step, webpack, or external CDN dependencies.
 * **Bitmap Scrolling Waterfall**: Spectrogram canvas shifts vertical pixels downward via `ctx.drawImage(canvas, 0, 1, width, height - 1)` rather than repainting all historical data, ensuring stable $60\,\text{FPS}$ rendering on low-power tablets.
 
-### 8.2 Home Assistant MQTT Auto-Discovery ([`hub/ha_discovery.py`](file:///d:/Fall_detection/hub/ha_discovery.py))
+### 8.2 Home Assistant MQTT Auto-Discovery ([`hub/ha_discovery.py`](hub/ha_discovery.py))
 * Generates 13 auto-discovered entities under device `Multi-Modal Fall Detection Hub`:
   * Binary sensor: `fall_detected` (device class: `safety`)
   * Sensors: `system_state`, `radar_height`, `radar_posture`, `radar_dwell`, `ml_fall_probability`
   * Node sensors: CSI velocity & surge for Nodes 1, 2, 3
   * Button: `reset_alarm` (device class: `restart`)
-* Pre-built automations provided in [`config/ha_automations.yaml`](file:///d:/Fall_detection/config/ha_automations.yaml).
+* Pre-built automations provided in [`config/ha_automations.yaml`](config/ha_automations.yaml).
 
-### 8.3 Docker Edge Deployment ([`deploy/`](file:///d:/Fall_detection/deploy/))
+### 8.3 Docker Edge Deployment ([`deploy/`](deploy/))
 * Multi-arch `Dockerfile` based on `python:3.11-slim`.
 * `docker-compose.yml` configures `network_mode: "host"` to receive UDP broadcast/multicast packets on ports 5555 and 5556 without NAT traversal jitter.
 
@@ -269,38 +269,38 @@ pytest -v tests/
 
 | Test Suite | Tests Passed | Covered Functionality |
 |---|:---:|---|
-| [`tests/test_active_veto.py`](file:///d:/Fall_detection/tests/test_active_veto.py) | 4 | Active radar veto suppressing false CSI burst, legacy backward compatibility, floor posture allowance, kinematic slump detection |
-| [`tests/test_adaptive_calibrator.py`](file:///d:/Fall_detection/tests/test_adaptive_calibrator.py) | 4 | 2.4 GHz vs 5.8 GHz carrier scaling ($\lambda$), EMA baseline drift adaptation, motion outlier rejection, bounds clamping |
-| [`tests/test_clutter_filter.py`](file:///d:/Fall_detection/tests/test_clutter_filter.py) | 6 | Multi-link Elevation Perturbation Ratio (EPR), pet ground clutter suppression, radar cluster area ($<0.15\,\text{m}^2$) filtering |
-| [`tests/test_train_pipeline.py`](file:///d:/Fall_detection/tests/test_train_pipeline.py) | 7 | Synthetic feature generation, 5-fold Stratified CV, ROC/PR evaluation, model export & reload, NPZ extraction, mix-ratio blending |
-| [`tests/test_dashboard.py`](file:///d:/Fall_detection/tests/test_dashboard.py) | 7 | Index route, status API, incidents query, WebSocket telemetry, `/api/calibrate`, `/api/thresholds`, `/api/datasets` |
-| [`tests/test_csi_pipeline.py`](file:///d:/Fall_detection/tests/test_csi_pipeline.py) | 4 | Binary packet parsing, corrupt packet rejection, PCA SVD, Doppler velocity |
-| [`tests/test_mmwave_parser.py`](file:///d:/Fall_detection/tests/test_mmwave_parser.py) | 4 | Binary frame decoding, checksum validation, JSON parsing, height tracking, dual fusion |
-| [`tests/test_classifier.py`](file:///d:/Fall_detection/tests/test_classifier.py) | 4 | 9D feature extraction, ML probability discrimination, model save/load, hybrid fusion |
-| [`tests/test_recorder.py`](file:///d:/Fall_detection/tests/test_recorder.py) | 2 | Multimodal session buffer synchronization, `.npz` export and metadata schema |
-| [`tests/test_ha_discovery.py`](file:///d:/Fall_detection/tests/test_ha_discovery.py) | 4 | HA MQTT discovery payloads, announce/remove lifecycle, telemetry publishing, YAML syntax |
-| [`tests/test_integration.py`](file:///d:/Fall_detection/tests/test_integration.py) | 9 | CSI mode, Radar mode, Fusion mode, false positive rejection, sequence interpolation, node liveness, cooldown, multi-link recovery |
-| [`tests/test_alert_dispatcher.py`](file:///d:/Fall_detection/tests/test_alert_dispatcher.py) | 6 | Cooldown rate limiting, CSV incident logging, MQTT dispatch, webhook POST, network failure resilience |
-| [`tests/test_calibrate.py`](file:///d:/Fall_detection/tests/test_calibrate.py) | 3 | Noise floor baseline generation, metrics computation, YAML export |
-| [`tests/test_audit_log.py`](file:///d:/Fall_detection/tests/test_audit_log.py) | 9 | Tamper-evident hash-chaining, SQLite storage, verify_chain, historical backdating |
-| [`tests/test_fhir_exporter.py`](file:///d:/Fall_detection/tests/test_fhir_exporter.py) | 3 | HL7 FHIR R4 Observation bundle generation and validation |
-| [`tests/test_auth.py`](file:///d:/Fall_detection/tests/test_auth.py) | 5 | Bearer token authentication, RBAC admin enforcement, audit log endpoint security |
-| [`tests/test_onnx_runner.py`](file:///d:/Fall_detection/tests/test_onnx_runner.py) | 7 | Quantized ONNX runtime inference, latency benchmarking, scikit-learn fallback |
-| [`tests/test_room_manager.py`](file:///d:/Fall_detection/tests/test_room_manager.py) | 14 | Multi-room context isolation, activity timeouts, REST API management |
-| [`tests/test_room_routing.py`](file:///d:/Fall_detection/tests/test_room_routing.py) | 3 | V2 18-byte UDP header parsing, hardware room-ID routing, multi-room context dispatch |
-| [`tests/test_relay_integration.py`](file:///d:/Fall_detection/tests/test_relay_integration.py) | 5 | RelayClient federation routing, magic byte checking, /api/relay/stats endpoint |
-| [`tests/test_version.py`](file:///d:/Fall_detection/tests/test_version.py) | 4 | Semantic version API, phase reporting, OTA directory traversal security |
-| [`tests/test_temporal_attention.py`](file:///d:/Fall_detection/tests/test_temporal_attention.py) | 3 | Recency-biased exponential temporal attention weights, dynamic runtime tuning |
-| [`tests/test_bayesian_classifier.py`](file:///d:/Fall_detection/tests/test_bayesian_classifier.py) | 6 | Platt-calibrated posterior probability, graduated alert severity, Brier score |
-| [`tests/test_fall_type_classifier.py`](file:///d:/Fall_detection/tests/test_fall_type_classifier.py) | 6 | 5-class fall categorization, confidence estimation, alert priority mapping |
-| [`tests/test_analytics.py`](file:///d:/Fall_detection/tests/test_analytics.py) | 7 | Population health analytics, hourly distribution, MTBF, alert cancellation rate |
-| [`tests/test_traceability.py`](file:///d:/Fall_detection/tests/test_traceability.py) | 4 | IEC 62304 SRS traceability matrix parsing, critical coverage verification |
-| [`tests/test_risk_analysis.py`](file:///d:/Fall_detection/tests/test_risk_analysis.py) | 5 | ISO 14971 FMEA risk register validation, severity x probability checks |
-| [`tests/test_clinical_report.py`](file:///d:/Fall_detection/tests/test_clinical_report.py) | 5 | Automated clinical validation report generator, audit statistics extraction |
-| [`tests/test_vital_signs.py`](file:///d:/Fall_detection/tests/test_vital_signs.py) | 6 | Respiration frequency extraction (0.1-0.5 Hz), chest displacement, apnea detection |
-| [`tests/test_clinical_trial_runner.py`](file:///d:/Fall_detection/tests/test_clinical_trial_runner.py) | 6 | FDA GMLP Principle 7 cohort simulation, Wilson score 95% CIs, Cohen's kappa, fairness |
-| [`tests/test_cloud_sync.py`](file:///d:/Fall_detection/tests/test_cloud_sync.py) | 5 | Multi-facility cloud gateway, offline SQLite store-and-forward queue, retry logic |
-| [`tests/test_diagnostics.py`](file:///d:/Fall_detection/tests/test_diagnostics.py) | 5 | IEC 60601-1-8 system diagnostics, packet jitter monitoring, automated self-tests |
+| [`tests/test_active_veto.py`](tests/test_active_veto.py) | 4 | Active radar veto suppressing false CSI burst, legacy backward compatibility, floor posture allowance, kinematic slump detection |
+| [`tests/test_adaptive_calibrator.py`](tests/test_adaptive_calibrator.py) | 4 | 2.4 GHz vs 5.8 GHz carrier scaling ($\lambda$), EMA baseline drift adaptation, motion outlier rejection, bounds clamping |
+| [`tests/test_clutter_filter.py`](tests/test_clutter_filter.py) | 6 | Multi-link Elevation Perturbation Ratio (EPR), pet ground clutter suppression, radar cluster area ($<0.15\,\text{m}^2$) filtering |
+| [`tests/test_train_pipeline.py`](tests/test_train_pipeline.py) | 7 | Synthetic feature generation, 5-fold Stratified CV, ROC/PR evaluation, model export & reload, NPZ extraction, mix-ratio blending |
+| [`tests/test_dashboard.py`](tests/test_dashboard.py) | 7 | Index route, status API, incidents query, WebSocket telemetry, `/api/calibrate`, `/api/thresholds`, `/api/datasets` |
+| [`tests/test_csi_pipeline.py`](tests/test_csi_pipeline.py) | 4 | Binary packet parsing, corrupt packet rejection, PCA SVD, Doppler velocity |
+| [`tests/test_mmwave_parser.py`](tests/test_mmwave_parser.py) | 4 | Binary frame decoding, checksum validation, JSON parsing, height tracking, dual fusion |
+| [`tests/test_classifier.py`](tests/test_classifier.py) | 4 | 9D feature extraction, ML probability discrimination, model save/load, hybrid fusion |
+| [`tests/test_recorder.py`](tests/test_recorder.py) | 2 | Multimodal session buffer synchronization, `.npz` export and metadata schema |
+| [`tests/test_ha_discovery.py`](tests/test_ha_discovery.py) | 4 | HA MQTT discovery payloads, announce/remove lifecycle, telemetry publishing, YAML syntax |
+| [`tests/test_integration.py`](tests/test_integration.py) | 9 | CSI mode, Radar mode, Fusion mode, false positive rejection, sequence interpolation, node liveness, cooldown, multi-link recovery |
+| [`tests/test_alert_dispatcher.py`](tests/test_alert_dispatcher.py) | 6 | Cooldown rate limiting, CSV incident logging, MQTT dispatch, webhook POST, network failure resilience |
+| [`tests/test_calibrate.py`](tests/test_calibrate.py) | 3 | Noise floor baseline generation, metrics computation, YAML export |
+| [`tests/test_audit_log.py`](tests/test_audit_log.py) | 9 | Tamper-evident hash-chaining, SQLite storage, verify_chain, historical backdating |
+| [`tests/test_fhir_exporter.py`](tests/test_fhir_exporter.py) | 3 | HL7 FHIR R4 Observation bundle generation and validation |
+| [`tests/test_auth.py`](tests/test_auth.py) | 5 | Bearer token authentication, RBAC admin enforcement, audit log endpoint security |
+| [`tests/test_onnx_runner.py`](tests/test_onnx_runner.py) | 7 | Quantized ONNX runtime inference, latency benchmarking, scikit-learn fallback |
+| [`tests/test_room_manager.py`](tests/test_room_manager.py) | 14 | Multi-room context isolation, activity timeouts, REST API management |
+| [`tests/test_room_routing.py`](tests/test_room_routing.py) | 3 | V2 18-byte UDP header parsing, hardware room-ID routing, multi-room context dispatch |
+| [`tests/test_relay_integration.py`](tests/test_relay_integration.py) | 5 | RelayClient federation routing, magic byte checking, /api/relay/stats endpoint |
+| [`tests/test_version.py`](tests/test_version.py) | 4 | Semantic version API, phase reporting, OTA directory traversal security |
+| [`tests/test_temporal_attention.py`](tests/test_temporal_attention.py) | 3 | Recency-biased exponential temporal attention weights, dynamic runtime tuning |
+| [`tests/test_bayesian_classifier.py`](tests/test_bayesian_classifier.py) | 6 | Platt-calibrated posterior probability, graduated alert severity, Brier score |
+| [`tests/test_fall_type_classifier.py`](tests/test_fall_type_classifier.py) | 6 | 5-class fall categorization, confidence estimation, alert priority mapping |
+| [`tests/test_analytics.py`](tests/test_analytics.py) | 7 | Population health analytics, hourly distribution, MTBF, alert cancellation rate |
+| [`tests/test_traceability.py`](tests/test_traceability.py) | 4 | IEC 62304 SRS traceability matrix parsing, critical coverage verification |
+| [`tests/test_risk_analysis.py`](tests/test_risk_analysis.py) | 5 | ISO 14971 FMEA risk register validation, severity x probability checks |
+| [`tests/test_clinical_report.py`](tests/test_clinical_report.py) | 5 | Automated clinical validation report generator, audit statistics extraction |
+| [`tests/test_vital_signs.py`](tests/test_vital_signs.py) | 6 | Respiration frequency extraction (0.1-0.5 Hz), chest displacement, apnea detection |
+| [`tests/test_clinical_trial_runner.py`](tests/test_clinical_trial_runner.py) | 6 | FDA GMLP Principle 7 cohort simulation, Wilson score 95% CIs, Cohen's kappa, fairness |
+| [`tests/test_cloud_sync.py`](tests/test_cloud_sync.py) | 5 | Multi-facility cloud gateway, offline SQLite store-and-forward queue, retry logic |
+| [`tests/test_diagnostics.py`](tests/test_diagnostics.py) | 5 | IEC 60601-1-8 system diagnostics, packet jitter monitoring, automated self-tests |
 
 ---
 

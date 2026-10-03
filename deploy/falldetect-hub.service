@@ -1,6 +1,6 @@
 [Unit]
 Description=Fall Detection Hub — Multi-Modal CSI + mmWave Sensor Fusion Server
-Documentation=https://github.com/ard12/Fall_Detection
+Documentation=https://github.com/ard12/Hmu_if_down
 After=network.target mosquitto.service
 Wants=mosquitto.service
 
@@ -9,7 +9,7 @@ Type=simple
 User=pi
 Group=pi
 WorkingDirectory=/opt/falldetect
-ExecStart=/opt/falldetect/venv/bin/python main.py --web --port 8765
+ExecStart=/opt/falldetect/venv/bin/python -m hub.server --mode fusion --web --web-port 8000
 Restart=always
 RestartSec=5
 StandardOutput=journal

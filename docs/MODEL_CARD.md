@@ -1,10 +1,10 @@
 # Model Card: CSI & mmWave Fall Detection Classifier
 
 **Model Version**: `v4.6.0`  
-**Date**: 2026-09-30  
+**Date**: 2026-10-02  
 **Model Type**: Calibrated Gradient-Boosted Decision Trees (`HistGradientBoostingClassifier` with Platt Scaling)  
 **Regulatory Class**: FDA Software as a Medical Device (SaMD) Class II / IEC 62304 Class B  
-**Repository**: [github.com/ard12/Fall_Detection](https://github.com/ard12/Fall_Detection)  
+**Repository**: [github.com/ard12/Hmu_if_down](https://github.com/ard12/Hmu_if_down)  
 
 ---
 
